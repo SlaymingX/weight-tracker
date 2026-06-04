@@ -404,6 +404,7 @@ const DATA_KEY   = 'wt_data_v1';
 const CLIENT_KEY = 'wt_goog_client_id';
 const FILE_KEY   = 'wt_drive_file_id';
 const HINT_KEY   = 'wt_goog_hint';
+const EMAIL_KEY  = 'wt_goog_email';   // stores confirmed email for One Tap hint
 const SCOPES     = 'https://www.googleapis.com/auth/drive.appdata';
 const DRIVE_API  = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
@@ -419,6 +420,8 @@ let cChart    = null;
 let accessToken  = null;
 let driveFileId  = localStorage.getItem(FILE_KEY) || null;
 let isSyncing    = false;
+let tokenExpiry  = 0;      // ms timestamp when current accessToken expires
+let tokenRefreshTimer = null;
 // suggestion state
 let sugItems     = [];   // current visible suggestions
 let sugFocusIdx  = -1;   // keyboard focus index
@@ -443,7 +446,18 @@ function saveLocal() {
 }
 
 // ============================================================
-//  GOOGLE AUTH (silent re-auth on return visits)
+//  GOOGLE AUTH  — One Tap silent auto-login + token client
+//
+//  Flow:
+//   1. On page load: google.accounts.id.initialize() with auto_select:true
+//      Google silently checks its own session cookie and calls onOneTapCredential
+//      if the user already approved this app — NO popup shown.
+//   2. onOneTapCredential receives a JWT id_token. We extract the email/sub
+//      and use it as the hint for initTokenClient with prompt:'none' to get
+//      a Drive access token also silently.
+//   3. If One Tap has nothing (first visit, revoked, or 3rd-party cookies
+//      blocked), we fall back to the explicit token client (account chooser).
+//   4. Access token is refreshed automatically 5 min before expiry.
 // ============================================================
 function getClientId() { return localStorage.getItem(CLIENT_KEY) || ''; }
 
@@ -454,57 +468,139 @@ function saveClientId() {
   }
   localStorage.setItem(CLIENT_KEY, val);
   document.getElementById('setupPanel').style.display = 'none';
-  signIn(false);
+  startAuth();
 }
 
-function signIn(silent = false) {
+// ── Entry point on page load ─────────────────────────────────
+function startAuth() {
   const clientId = getClientId();
   if (!clientId) return;
-  const hint = localStorage.getItem(HINT_KEY) || '';
+  const savedEmail = localStorage.getItem(EMAIL_KEY);
 
-  function makeClient(prompt) {
-    return google.accounts.oauth2.initTokenClient({
-      client_id: clientId, scope: SCOPES, hint, prompt,
-      callback: (tr) => {
-        if (tr.error) {
-          if (silent && tr.error === 'interaction_required') {
-            setSyncStatus('err', 'Tap "Connect" to sign in');
-            document.getElementById('syncBtn').textContent = 'Connect';
-            return;
-          }
-          setSyncStatus('err', 'Auth failed: ' + tr.error); return;
-        }
-        accessToken = tr.access_token;
-        if (tr.authuser !== undefined) localStorage.setItem(HINT_KEY, hint || '__authed__');
-        setSyncStatus('busy', 'Loading from Drive…');
-        loadFromDrive();
-      },
-    });
-  }
+  // Initialize One Tap for silent auto-login
+  google.accounts.id.initialize({
+    client_id:   clientId,
+    callback:    onOneTapCredential,
+    auto_select: true,          // silently selects the last-used account
+    cancel_on_tap_outside: false,
+    context: 'signin',
+    login_hint: savedEmail || undefined,
+  });
 
-  if (silent && hint) {
-    try { makeClient('').requestAccessToken({ prompt: '' }); }
-    catch { makeClient('select_account').requestAccessToken(); }
+  if (savedEmail) {
+    // We know who the user is — try to get a Drive token silently first
+    setSyncStatus('busy', 'Auto-connecting…');
+    requestDriveToken(savedEmail, /*silent=*/true);
   } else {
-    makeClient('select_account').requestAccessToken();
+    // First visit — trigger One Tap (may show a small corner prompt or be invisible)
+    setSyncStatus('busy', 'Connecting…');
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // One Tap couldn't run (3rd-party cookies blocked, dismissed, etc.)
+        // Fall back to explicit token client
+        requestDriveToken(null, /*silent=*/false);
+      }
+    });
   }
 }
 
-function refreshToken() {
+// ── Called by One Tap when it auto-selects an account ────────
+function onOneTapCredential(response) {
+  // Decode the JWT payload (we only need email/sub — no signature verification
+  // needed here since we immediately use it as a login_hint, not for auth)
+  try {
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const email   = payload.email || payload.sub;
+    localStorage.setItem(EMAIL_KEY, email);
+    requestDriveToken(email, /*silent=*/true);
+  } catch(e) {
+    // Fallback: proceed without hint
+    requestDriveToken(null, /*silent=*/false);
+  }
+}
+
+// ── Request a Drive access token ─────────────────────────────
+function requestDriveToken(hint, silent) {
   const clientId = getClientId();
-  if (!clientId || !localStorage.getItem(HINT_KEY)) return;
-  const hint = localStorage.getItem(HINT_KEY);
+  if (!clientId) return;
+
   const client = google.accounts.oauth2.initTokenClient({
-    client_id: clientId, scope: SCOPES, hint, prompt: '',
-    callback: (tr) => { if (!tr.error) { accessToken = tr.access_token; saveToDrive(); } },
+    client_id: clientId,
+    scope:     SCOPES,
+    hint:      hint || undefined,
+    prompt:    silent ? 'none' : 'select_account',
+    callback:  (tr) => {
+      if (tr.error) {
+        if (silent) {
+          // Silent failed — try One Tap prompt, then explicit fallback
+          google.accounts.id.prompt((n) => {
+            if (n.isNotDisplayed() || n.isSkippedMoment()) {
+              // One Tap also failed — need explicit login
+              setSyncStatus('err', 'Tap "Connect" to sign in');
+              document.getElementById('syncBtn').textContent = 'Connect';
+            }
+            // else One Tap showed and will call onOneTapCredential
+          });
+          return;
+        }
+        setSyncStatus('err', 'Auth failed: ' + tr.error);
+        return;
+      }
+      // Success
+      accessToken = tr.access_token;
+      // Schedule proactive refresh 5 min before expiry (tokens last ~1 hour)
+      const expiresIn = (tr.expires_in || 3600) - 300;
+      clearTimeout(tokenRefreshTimer);
+      tokenRefreshTimer = setTimeout(() => refreshToken(), expiresIn * 1000);
+      setSyncStatus('busy', 'Loading from Drive…');
+      loadFromDrive();
+    },
   });
-  client.requestAccessToken({ prompt: '' });
+
+  if (silent) {
+    client.requestAccessToken({ prompt: 'none' });
+  } else {
+    client.requestAccessToken();
+  }
+}
+
+// ── Proactive silent token refresh before expiry ─────────────
+function refreshToken() {
+  const email = localStorage.getItem(EMAIL_KEY);
+  requestDriveToken(email, /*silent=*/true);
+}
+
+// ── Called when a 401 is received mid-session ────────────────
+function refreshTokenThenRetry() {
+  const clientId = getClientId();
+  if (!clientId) return;
+  const email = localStorage.getItem(EMAIL_KEY);
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId, scope: SCOPES,
+    hint: email || undefined, prompt: 'none',
+    callback: (tr) => {
+      if (!tr.error) {
+        accessToken = tr.access_token;
+        const expiresIn = (tr.expires_in || 3600) - 300;
+        clearTimeout(tokenRefreshTimer);
+        tokenRefreshTimer = setTimeout(() => refreshToken(), expiresIn * 1000);
+        saveToDrive(); // retry
+      } else {
+        setSyncStatus('err', 'Session expired — tap Connect');
+        document.getElementById('syncBtn').textContent = 'Connect';
+      }
+    },
+  });
+  client.requestAccessToken({ prompt: 'none' });
 }
 
 function signOut() {
   const tok = accessToken;
   accessToken = null;
+  clearTimeout(tokenRefreshTimer);
   localStorage.removeItem(HINT_KEY);
+  localStorage.removeItem(EMAIL_KEY);
+  google.accounts.id.disableAutoSelect();
   if (tok) { try { google.accounts.oauth2.revoke(tok, ()=>{}); } catch {} }
   document.getElementById('signOutBtn').style.display = 'none';
   document.getElementById('syncBtn').textContent = 'Connect';
@@ -514,7 +610,7 @@ function signOut() {
 
 function handleSyncBtn() {
   if (accessToken) { setSyncStatus('busy', 'Syncing…'); saveToDrive(); }
-  else signIn(false);
+  else startAuth();
 }
 
 // ============================================================
@@ -567,7 +663,7 @@ async function saveToDrive() {
       localStorage.setItem(FILE_KEY, driveFileId);
     }
     if (res.ok) { saveLocal(); setSyncStatus('ok', 'Saved to Drive', new Date().toISOString()); }
-    else if (res.status === 401) { accessToken = null; setSyncStatus('busy','Refreshing token…'); refreshToken(); }
+    else if (res.status === 401) { accessToken = null; setSyncStatus('busy','Refreshing token…'); refreshTokenThenRetry(); }
     else { setSyncStatus('err', 'Save failed (HTTP ' + res.status + ')'); }
   } catch(e) { setSyncStatus('err', 'Drive save failed'); console.error(e); saveLocal(); }
   isSyncing = false; updateSyncBtn(false);
@@ -1241,17 +1337,14 @@ function render() {
   setInterval(checkLateBanner, 60000); // re-check every minute
   document.getElementById('weightInput').addEventListener('keydown', e => { if(e.key==='Enter') saveWeight(); });
 
-  const savedId   = getClientId();
-  const hasAuthed = !!localStorage.getItem(HINT_KEY);
+  const savedId = getClientId();
 
   if (savedId) {
     document.getElementById('setupPanel').style.display = 'none';
     document.getElementById('clientIdInput').value = savedId;
+    // Wait for GIS script then start auth
     window.addEventListener('load', () => {
-      setTimeout(() => {
-        if (hasAuthed) { setSyncStatus('busy','Auto-connecting…'); signIn(true); }
-        else           { setSyncStatus('busy','Connecting to Drive…'); signIn(false); }
-      }, 900);
+      setTimeout(startAuth, 800);
     });
   }
 
