@@ -1,6 +1,6 @@
 {
-  "name": "Weight Tracker",
-  "short_name": "WeightTracker",
+  "name": "FitFriend",
+  "short_name": "FitFriend",
   "description": "Personal weight and calorie tracker with Google Drive sync",
   "start_url": "/weight-tracker/",
   "scope": "/weight-tracker/",
