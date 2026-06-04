@@ -240,6 +240,45 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .goal-progress-bar{height:100%;background:linear-gradient(90deg,#3cb862,#78dc8c);border-radius:3px;transition:width .4s}
 .goal-empty{font-size:11px;color:rgba(180,220,185,.3);text-align:center;padding:4px 0;letter-spacing:.5px}
 
+
+/* ======================================================
+   HISTORY TAB
+   ====================================================== */
+.hist-section{margin:16px 16px 0;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.1);border-radius:16px;padding:18px}
+.hist-sec-label{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;margin-bottom:14px;opacity:.8}
+
+/* period form */
+.period-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.period-field label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:5px}
+.period-field input{width:100%;padding:10px 12px;font-size:13px}
+.period-weights{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.period-weights label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:5px}
+.period-weights input{width:100%;padding:10px 12px;font-size:13px}
+.btn-add-period{width:100%;background:linear-gradient(135deg,#3cb862,#2a9446);border:none;border-radius:10px;color:#fff;padding:12px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px}
+
+/* history cards */
+.hist-card{margin-bottom:10px;border:1px solid rgba(120,220,140,.1);border-radius:14px;overflow:hidden;position:relative}
+.hist-card-head{padding:14px 16px 10px;background:rgba(120,220,140,.04)}
+.hist-card-dates{font-family:'Syne',sans-serif;font-size:13px;color:#d4edd8;margin-bottom:2px}
+.hist-card-sub{font-size:10px;color:rgba(120,220,140,.45);letter-spacing:.5px}
+.hist-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(120,220,140,.07)}
+.hist-stat{background:#080b10;padding:11px 10px;text-align:center}
+.hist-stat-l{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(180,220,185,.35);margin-bottom:3px}
+.hist-stat-v{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#78dc8c}
+.hist-stat-v.red{color:#e07070}
+.hist-stat-v.amber{color:#f0c060}
+.hist-card-chart{height:100px;padding:10px 12px 6px;background:#080b10}
+.hist-card-del{position:absolute;top:10px;right:12px;background:none;border:none;color:rgba(220,80,80,.4);cursor:pointer;font-size:15px;font-family:monospace;padding:2px 6px;border-radius:5px}
+.hist-card-del:hover{color:#e07070;background:rgba(220,80,80,.1)}
+.hist-empty{padding:36px 20px;text-align:center;color:rgba(180,220,185,.22);font-size:12px;line-height:2}
+.hist-empty-icon{font-size:30px;display:block;margin-bottom:8px;opacity:.4}
+
+/* summary strip */
+.hist-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:0}
+.hist-sum-stat{background:rgba(255,255,255,.02);border:1px solid rgba(120,220,140,.07);border-radius:10px;padding:11px 13px}
+.hist-sum-l{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(180,220,185,.35);margin-bottom:3px}
+.hist-sum-v{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#78dc8c}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -270,6 +309,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <div class="tab-bar">
   <button class="tab-btn active" id="tab-tracker" onclick="switchTab('tracker')">📊 Tracker</button>
   <button class="tab-btn"        id="tab-food"    onclick="switchTab('food')">🍽 Food DB</button>
+  <button class="tab-btn"        id="tab-history" onclick="switchTab('history')">📉 History</button>
 </div>
 
 <!-- SYNC STATUS BAR -->
@@ -399,6 +439,50 @@ input::placeholder{color:rgba(180,220,185,.3)}
   </div>
 </div><!-- /panel-food -->
 
+<!-- ===================== TAB: HISTORY ===================== -->
+<div class="tab-panel" id="panel-history">
+
+  <!-- ADD PERIOD FORM -->
+  <div class="hist-section">
+    <div class="hist-sec-label">Add Weight Loss Period</div>
+    <div class="period-grid">
+      <div class="period-field">
+        <label>Start date</label>
+        <input type="date" id="histStart"/>
+      </div>
+      <div class="period-field">
+        <label>End date</label>
+        <input type="date" id="histEnd"/>
+      </div>
+    </div>
+    <div class="period-weights">
+      <div>
+        <label>Start weight (kg)</label>
+        <input type="number" id="histStartW" placeholder="e.g. 85.0" step="0.1" min="20" max="300"/>
+      </div>
+      <div>
+        <label>End weight (kg)</label>
+        <input type="number" id="histEndW" placeholder="e.g. 79.5" step="0.1" min="20" max="300"/>
+      </div>
+    </div>
+    <button class="btn-add-period" onclick="addHistoryPeriod()">+ Save Period</button>
+  </div>
+
+  <!-- OVERALL SUMMARY -->
+  <div class="hist-section" id="histSummarySection" style="display:none">
+    <div class="hist-sec-label">Overall Summary</div>
+    <div class="hist-summary" id="histSummary"></div>
+  </div>
+
+  <!-- PERIODS LIST -->
+  <div class="hist-section">
+    <div class="hist-sec-label">Periods</div>
+    <div id="histList"></div>
+  </div>
+
+</div><!-- /panel-history -->
+
+
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -440,12 +524,13 @@ function loadLocal() {
   try {
     const d = JSON.parse(localStorage.getItem(DATA_KEY));
     if (!d) return freshDb();
-    if (!d.food) d.food = { categories: [], items: [] };
+    if (!d.food)    d.food    = { categories: [], items: [] };
+    if (!d.periods) d.periods = [];
     return d;
   } catch { return freshDb(); }
 }
 function freshDb() {
-  return { weights: {}, calories: {}, food: { categories: [], items: [] } };
+  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [] };
 }
 function saveLocal() {
   try { localStorage.setItem(DATA_KEY, JSON.stringify(db)); } catch {}
@@ -634,7 +719,8 @@ async function loadFromDrive() {
       document.getElementById('signOutBtn').style.display = 'block';
       const cr   = await fetch(`${DRIVE_API}/files/${driveFileId}?alt=media`, { headers: { Authorization: 'Bearer ' + accessToken } });
       const data = await cr.json();
-      if (!data.food) data.food = { categories: [], items: [] };
+      if (!data.food)    data.food    = { categories: [], items: [] };
+      if (!data.periods) data.periods = [];
       db = data;
       saveLocal();
       render();
@@ -703,11 +789,12 @@ function save() {
 //  TAB SWITCHING
 // ============================================================
 function switchTab(name) {
-  ['tracker','food'].forEach(t => {
+  ['tracker','food','history'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.getElementById('panel-'+t).classList.toggle('active', t===name);
   });
-  if (name === 'food') renderFoodDb();
+  if (name === 'food')    renderFoodDb();
+  if (name === 'history') renderHistory();
 }
 
 // ============================================================
@@ -734,6 +821,7 @@ function flash(msg, err=false){
 function getDate(){ return document.getElementById('datePicker').value || todayStr(); }
 function setToday(){
   document.getElementById('datePicker').value = todayStr();
+  document.getElementById('histEnd').value   = todayStr();
   render();
 }
 function shiftDay(delta) {
@@ -759,12 +847,12 @@ function toggleEdit(){
 //  AUTOCOMPLETE SUGGESTIONS
 // ============================================================
 function getAllFoodItems() {
-  // Returns [{name, kcalPortion, catName}]
+  // Returns [{name, grams, kcalPortion, catName}]
   if (!db.food) return [];
   return (db.food.items || []).map(item => {
     const cat = (db.food.categories || []).find(c => c.id === item.catId);
     const kcalPortion = Math.round((item.kcalPer100 * item.grams) / 100 * 10) / 10;
-    return { name: item.name, kcalPortion, catName: cat ? cat.name : '' };
+    return { name: item.name, grams: item.grams, kcalPortion, catName: cat ? cat.name : '' };
   });
 }
 
@@ -773,22 +861,36 @@ function onCalInput(e) {
   sugExpanded = false;
   sugFocusIdx = -1;
 
-  // Only show suggestions if input starts with a letter
-  if (!val || /^[^a-zA-Zа-яА-ЯёЁіІїЇєЄ]/u.test(val)) {
+  // Only show suggestions if input starts with a letter (any script)
+  if (!val || /^[^\p{L}]/u.test(val)) {
     hideSuggestions(); return;
   }
 
   const query = val.toLowerCase();
-  const all = getAllFoodItems().filter(f => f.name.toLowerCase().startsWith(query));
-  sugItems = all;
+  // Substring search: match anywhere in the name, sort prefix matches first
+  const matched = getAllFoodItems()
+    .map(f => ({ ...f, idx: f.name.toLowerCase().indexOf(query) }))
+    .filter(f => f.idx !== -1)
+    .sort((a, b) => a.idx - b.idx || a.name.localeCompare(b.name));
 
-  if (!all.length) { hideSuggestions(); return; }
+  sugItems = matched;
+  if (!matched.length) { hideSuggestions(); return; }
   renderSuggestions(false);
 }
 
+function highlightMatch(rawName, query) {
+  // Highlight the matched substring (case-insensitive) wherever it appears
+  const lo   = rawName.toLowerCase();
+  const start = lo.indexOf(query.toLowerCase());
+  if (start === -1) return rawName;
+  return rawName.slice(0, start)
+    + '<em>' + rawName.slice(start, start + query.length) + '</em>'
+    + rawName.slice(start + query.length);
+}
+
 function renderSuggestions(expanded) {
-  const box = document.getElementById('sugBox');
-  const query = document.getElementById('calInput').value.trim().toLowerCase();
+  const box   = document.getElementById('sugBox');
+  const query = document.getElementById('calInput').value.trim();
   const visible = expanded ? sugItems : sugItems.slice(0, 3);
   const hidden  = sugItems.length - 3;
 
@@ -798,18 +900,12 @@ function renderSuggestions(expanded) {
     div.className = 'sug-item';
     if (idx === sugFocusIdx) div.classList.add('focused');
 
-    // Highlight matching prefix
-    const matchLen = query.length;
-    const rawName  = item.name;
-    const highlighted = `<em>${rawName.slice(0,matchLen)}</em>${rawName.slice(matchLen)}`;
-
     div.innerHTML = `
-      <span class="sug-name">${highlighted}</span>
+      <span class="sug-name">${highlightMatch(item.name, query)}</span>
       <div class="sug-right">
-        <span class="sug-kcal">${item.kcalPortion} kcal</span>
+        <span class="sug-kcal">${item.kcalPortion} kcal · ${item.grams}g</span>
         <span class="sug-cat">${item.catName}</span>
       </div>`;
-    // Use mousedown so it fires before blur hides the box
     div.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(item); });
     box.appendChild(div);
   });
@@ -1323,6 +1419,198 @@ function checkLateBanner() {
   const el  = document.getElementById('lateBanner');
   el.classList.toggle('hidden', !show);
 }
+
+// ============================================================
+//  HISTORY TAB
+// ============================================================
+
+// chart instances keyed by period id
+const histCharts = {};
+
+function addHistoryPeriod() {
+  const s  = document.getElementById('histStart').value;
+  const e  = document.getElementById('histEnd').value;
+  const sw = parseFloat(document.getElementById('histStartW').value.replace(',','.'));
+  const ew = parseFloat(document.getElementById('histEndW').value.replace(',','.'));
+
+  if (!s)                  { flash('Select a start date', true); return; }
+  if (!e)                  { flash('Select an end date', true);   return; }
+  if (s >= e)              { flash('End date must be after start date', true); return; }
+  if (!sw || sw < 20 || sw > 300) { flash('Enter a valid start weight', true); return; }
+  if (!ew || ew < 20 || ew > 300) { flash('Enter a valid end weight', true);   return; }
+
+  if (!db.periods) db.periods = [];
+  db.periods.push({ id: Date.now(), start: s, end: e, startW: sw, endW: ew });
+  // Sort newest first
+  db.periods.sort((a,b) => b.start.localeCompare(a.start));
+  save();
+  // Clear form
+  document.getElementById('histStart').value  = '';
+  document.getElementById('histEnd').value    = '';
+  document.getElementById('histStartW').value = '';
+  document.getElementById('histEndW').value   = '';
+  renderHistory();
+  flash('Period saved ✓');
+}
+
+function deleteHistoryPeriod(id) {
+  db.periods = db.periods.filter(p => p.id !== id);
+  save();
+  renderHistory();
+}
+
+function periodDays(p) {
+  return Math.round((new Date(p.end) - new Date(p.start)) / 86400000);
+}
+
+function periodLost(p) {
+  return parseFloat((p.startW - p.endW).toFixed(2));
+}
+
+function renderHistory() {
+  if (!db.periods) db.periods = [];
+  const list = document.getElementById('histList');
+  const summSec = document.getElementById('histSummarySection');
+
+  // ── overall summary ──────────────────────────────────────────
+  if (db.periods.length >= 2) {
+    summSec.style.display = 'block';
+    const totalDays = db.periods.reduce((s,p) => s + periodDays(p), 0);
+    const totalLost = db.periods.reduce((s,p) => s + periodLost(p), 0);
+    const avgRate   = totalDays > 0 ? (totalLost / totalDays).toFixed(3) : '—';
+    const bestPeriod = [...db.periods].sort((a,b) => {
+      const ra = periodLost(a)/periodDays(a), rb = periodLost(b)/periodDays(b);
+      return rb - ra;
+    })[0];
+    document.getElementById('histSummary').innerHTML = `
+      <div class="hist-sum-stat"><div class="hist-sum-l">Total periods</div><div class="hist-sum-v">${db.periods.length}</div></div>
+      <div class="hist-sum-stat"><div class="hist-sum-l">Total days</div><div class="hist-sum-v">${totalDays}</div></div>
+      <div class="hist-sum-stat"><div class="hist-sum-l">Total lost</div><div class="hist-sum-v">${totalLost > 0 ? '−' : '+'}${Math.abs(totalLost).toFixed(1)} kg</div></div>
+      <div class="hist-sum-stat"><div class="hist-sum-l">Avg rate</div><div class="hist-sum-v">${avgRate !== '—' ? (totalLost > 0 ? '−' : '+') + Math.abs(avgRate) + ' kg/d' : '—'}</div></div>
+    `;
+  } else {
+    summSec.style.display = 'none';
+  }
+
+  // ── periods list ─────────────────────────────────────────────
+  if (!db.periods.length) {
+    list.innerHTML = '<div class="hist-empty"><span class="hist-empty-icon">📉</span>No periods yet.<br>Add your first weight loss period above.</div>';
+    return;
+  }
+
+  // Destroy old charts to avoid canvas reuse errors
+  Object.keys(histCharts).forEach(k => {
+    if (histCharts[k]) { histCharts[k].destroy(); delete histCharts[k]; }
+  });
+
+  list.innerHTML = '';
+  db.periods.forEach(p => {
+    const days    = periodDays(p);
+    const lost    = periodLost(p);
+    const isLoss  = lost > 0;
+    const rate    = days > 0 ? (lost / days).toFixed(3) : '0';
+    const lostStr = (isLoss ? '−' : '+') + Math.abs(lost).toFixed(1) + ' kg';
+    const rateStr = (isLoss ? '−' : '+') + Math.abs(rate) + ' kg/day';
+    const statClass = isLoss ? '' : 'amber';
+
+    const card = document.createElement('div');
+    card.className = 'hist-card';
+    card.id = 'hcard-' + p.id;
+    card.innerHTML = `
+      <div class="hist-card-head">
+        <div class="hist-card-dates">${fmtDate(p.start)} → ${fmtDate(p.end)}</div>
+        <div class="hist-card-sub">${p.startW} kg → ${p.endW} kg</div>
+        <button class="hist-card-del" onclick="deleteHistoryPeriod(${p.id})">✕</button>
+      </div>
+      <div class="hist-card-stats">
+        <div class="hist-stat">
+          <div class="hist-stat-l">Lost</div>
+          <div class="hist-stat-v ${statClass}">${lostStr}</div>
+        </div>
+        <div class="hist-stat">
+          <div class="hist-stat-l">Days</div>
+          <div class="hist-stat-v">${days}</div>
+        </div>
+        <div class="hist-stat">
+          <div class="hist-stat-l">Per day</div>
+          <div class="hist-stat-v ${statClass}">${rateStr}</div>
+        </div>
+      </div>
+      <div class="hist-card-chart">
+        <canvas id="hchart-${p.id}"></canvas>
+      </div>`;
+    list.appendChild(card);
+
+    // Draw mini chart: linear interpolation start→end over the period
+    const labels = [], data = [];
+    for (let i = 0; i <= Math.min(days, 30); i++) {
+      const d = new Date(p.start + 'T12:00:00');
+      d.setDate(d.getDate() + Math.round(i * (days / Math.min(days, 30))));
+      labels.push(d.toLocaleDateString('en-GB', {day:'2-digit',month:'short'}));
+      data.push(parseFloat((p.startW + (p.endW - p.startW) * (i / Math.min(days, 30))).toFixed(2)));
+    }
+    // Overlay actual weight entries that fall within this period
+    const actualPoints = Object.entries(db.weights)
+      .filter(([dt]) => dt >= p.start && dt <= p.end)
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([dt,w]) => ({
+        x: new Date(dt + 'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short'}),
+        y: parseFloat(w)
+      }));
+
+    const ctx = document.getElementById('hchart-' + p.id).getContext('2d');
+    histCharts[p.id] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Trend',
+            data,
+            borderColor: 'rgba(120,220,140,0.3)',
+            borderWidth: 1,
+            borderDash: [4,3],
+            pointRadius: 0,
+            tension: 0,
+            fill: false,
+          },
+          ...(actualPoints.length ? [{
+            label: 'Actual',
+            data: actualPoints,
+            borderColor: '#78dc8c',
+            backgroundColor: 'rgba(120,220,140,0.15)',
+            pointBackgroundColor: '#78dc8c',
+            pointRadius: 3,
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+          }] : []),
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(10,12,18,0.95)',
+            titleFont: {family:'DM Mono',size:10},
+            bodyFont:  {family:'DM Mono',size:11},
+            padding: 8, cornerRadius: 7,
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: {
+            grid:  { color: 'rgba(120,220,140,0.07)' },
+            ticks: { color: 'rgba(180,220,185,0.4)', font:{family:'DM Mono',size:9}, maxTicksLimit: 4 }
+          }
+        }
+      }
+    });
+  });
+}
+
 // ============================================================
 //  RENDER ALL
 // ============================================================
