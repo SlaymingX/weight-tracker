@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FitFriend">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#080b10;min-height:100vh}
@@ -388,6 +388,34 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .periods-empty{padding:36px 20px;text-align:center;color:rgba(180,220,185,.22);font-size:12px;line-height:2}
 .periods-empty-icon{font-size:30px;display:block;margin-bottom:8px;opacity:.4}
 
+
+/* ---- NOTES BAR ---- */
+.notes-wrap{margin-top:14px}
+.notes-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:6px}
+.notes-textarea{
+  width:100%;min-height:60px;resize:vertical;
+  background:rgba(120,220,140,.04);border:1px solid rgba(120,220,140,.14);border-radius:10px;
+  color:#c8e8cc;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6;
+  padding:10px 12px;outline:none;transition:border-color .2s;
+}
+.notes-textarea:focus{border-color:rgba(120,220,140,.35)}
+.notes-textarea::placeholder{color:rgba(180,220,185,.2)}
+.notes-saved-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#78dc8c;margin-left:6px;opacity:0;transition:opacity .3s;vertical-align:middle}
+.notes-saved-dot.show{opacity:1}
+
+/* ---- HISTORY: COMPARISON CHART ---- */
+.hist-compare-wrap{
+  margin:0 16px 10px;background:rgba(255,255,255,.03);
+  border:1px solid rgba(120,220,140,.1);border-radius:16px;overflow:hidden;
+}
+.hist-compare-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px}
+.hist-compare-title{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;opacity:.8}
+.hist-compare-legend{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px}
+.hcl-item{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(180,220,185,.55)}
+.hcl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.hist-compare-chart{height:200px;padding:0 12px 12px}
+.hist-compare-empty{padding:24px;text-align:center;color:rgba(180,220,185,.22);font-size:12px}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -515,6 +543,11 @@ input::placeholder{color:rgba(180,220,185,.3)}
       <input type="number" id="weightInput" placeholder="e.g. 75.4" step="0.1" min="20" max="300"/>
       <button class="btn btn-green" onclick="saveWeight()">Save kg</button>
     </div>
+    <!-- NOTES BAR -->
+    <div class="notes-wrap">
+      <div class="notes-label">Notes <span class="notes-saved-dot" id="notesSavedDot"></span></div>
+      <textarea class="notes-textarea" id="notesInput" placeholder="Add a note for this date…" oninput="onNoteInput()" rows="2"></textarea>
+    </div>
     <div class="stats-grid" id="statsGrid" style="display:none">
       <div class="stat"><div class="stat-l">Starting</div><div class="stat-v muted" id="sStart"></div></div>
       <div class="stat"><div class="stat-l">Change</div><div class="stat-v" id="sChange"></div></div>
@@ -595,6 +628,15 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <!-- ===================== TAB: HISTORY ===================== -->
 <div class="tab-panel" id="panel-history">
 
+  <!-- COMPARISON CHART -->
+  <div class="hist-compare-wrap" id="histCompareWrap">
+    <div class="hist-compare-head">
+      <span class="hist-compare-title">All Periods — Compare</span>
+    </div>
+    <div class="hist-compare-legend" id="histCompareLegend"></div>
+    <div class="hist-compare-chart"><canvas id="histCompareChart"></canvas></div>
+  </div>
+
   <!-- NEW PERIOD BUTTON -->
   <div class="hist-section" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px">
     <span class="hist-sec-label" style="margin-bottom:0">Periods</span>
@@ -654,11 +696,12 @@ function loadLocal() {
     if (!d) return freshDb();
     if (!d.food)    d.food    = { categories: [], items: [] };
     if (!d.periods) d.periods = [];
+    if (!d.notes)   d.notes   = {};
     return d;
   } catch { return freshDb(); }
 }
 function freshDb() {
-  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [] }; // periods: [{id,name,start,end|null,startW,endW|null,current,done}]
+  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {} }; // notes: {date: string}, periods: [{id,name,start,end|null,startW,endW|null,current,done}]
 }
 function saveLocal() {
   try { localStorage.setItem(DATA_KEY, JSON.stringify(db)); } catch {}
@@ -849,6 +892,7 @@ async function loadFromDrive() {
       const data = await cr.json();
       if (!data.food)    data.food    = { categories: [], items: [] };
       if (!data.periods) data.periods = [];
+      if (!data.notes)   data.notes   = {};
       db = data;
       saveLocal();
       render();
@@ -922,7 +966,7 @@ function switchTab(name) {
     document.getElementById('panel-'+t).classList.toggle('active', t===name);
   });
   if (name === 'food')    renderFoodDb();
-  if (name === 'history') renderHistory();
+  if (name === 'history') { renderHistory(); renderCompareChart(); }
 }
 
 // ============================================================
@@ -1261,19 +1305,7 @@ function renderWeightLog() {
 // ============================================================
 //  CHARTS
 // ============================================================
-const chartDefaults = {
-  responsive:true, maintainAspectRatio:false,
-  plugins:{ legend:{display:false}, tooltip:{
-    backgroundColor:'rgba(10,12,18,0.95)',
-    titleFont:{family:'DM Mono',size:11}, bodyFont:{family:'DM Mono',size:12},
-    padding:10, cornerRadius:8,
-    callbacks:{ title: items => fmtDate(items[0].label) }
-  }},
-  scales:{
-    x:{ grid:{color:'rgba(120,220,140,0.07)'}, ticks:{color:'rgba(180,220,185,0.45)',font:{family:'DM Mono',size:9},maxTicksLimit:6,callback:function(v){return fmtDate(this.getLabelForValue(v));}} },
-    y:{ grid:{color:'rgba(120,220,140,0.07)'}, ticks:{color:'rgba(180,220,185,0.45)',font:{family:'DM Mono',size:9}} }
-  }
-};
+// chartDefaults removed — all charts now build options inline to preserve callbacks
 function renderWeightChart() {
   const p = getActivePeriod();
   const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b));
@@ -1282,10 +1314,58 @@ function renderWeightChart() {
   wrap.style.display='block'; noData.style.display='none';
   const ctx = document.getElementById('weightChart').getContext('2d');
   if (wChart) wChart.destroy();
-  wChart = new Chart(ctx,{
-    type:'line',
-    data:{ labels:entries.map(e=>e[0]), datasets:[{data:entries.map(e=>parseFloat(e[1])),borderColor:'#78dc8c',backgroundColor:'rgba(120,220,140,0.08)',pointBackgroundColor:'#78dc8c',pointRadius:4,borderWidth:2,tension:0.3,fill:true}] },
-    options: JSON.parse(JSON.stringify(chartDefaults))
+  // Build options directly (no JSON clone — that strips functions)
+  wChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: entries.map(e => e[0]),
+      datasets: [{
+        data: entries.map(e => parseFloat(e[1])),
+        borderColor: '#78dc8c',
+        backgroundColor: 'rgba(120,220,140,0.08)',
+        pointBackgroundColor: '#78dc8c',
+        pointRadius: 4, pointHoverRadius: 7,
+        borderWidth: 2, tension: 0.3, fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      onClick: (event, elements) => {
+        try {
+          if (!elements.length) return;
+          const date = entries[elements[0].index][0];
+          document.getElementById('datePicker').value = date;
+          render();
+          document.getElementById('weightInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch(err) {
+          console.error('[weight chart click]', err.message, err.stack);
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(10,12,18,0.95)',
+          titleFont: { family: 'DM Mono', size: 11 },
+          bodyFont:  { family: 'DM Mono', size: 12 },
+          padding: 10, cornerRadius: 8,
+          callbacks: {
+            title: items => fmtDate(items[0].label),
+            afterLabel: () => '  ↗ Click to open this date',
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:  { color: 'rgba(120,220,140,0.07)' },
+          ticks: { color: 'rgba(180,220,185,0.45)', font: { family: 'DM Mono', size: 9 },
+                   maxTicksLimit: 6, callback: function(v) { return fmtDate(this.getLabelForValue(v)); } }
+        },
+        y: {
+          grid:  { color: 'rgba(120,220,140,0.07)' },
+          ticks: { color: 'rgba(180,220,185,0.45)', font: { family: 'DM Mono', size: 9 } }
+        }
+      }
+    }
   });
 }
 function renderCalChart() {
@@ -1297,13 +1377,42 @@ function renderCalChart() {
   wrap.style.display='block';
   const ctx = document.getElementById('calChart').getContext('2d');
   if (cChart) cChart.destroy();
-  const opts = JSON.parse(JSON.stringify(chartDefaults));
-  opts.scales.x.ticks.color='rgba(240,192,96,0.45)'; opts.scales.y.ticks.color='rgba(240,192,96,0.45)';
-  opts.scales.x.grid.color='rgba(240,192,96,0.07)';  opts.scales.y.grid.color='rgba(240,192,96,0.07)';
-  cChart = new Chart(ctx,{
-    type:'line',
-    data:{ labels:entries.map(e=>e.date), datasets:[{data:entries.map(e=>e.total),borderColor:'#f0c060',backgroundColor:'rgba(240,192,96,0.08)',pointBackgroundColor:'#f0c060',pointRadius:4,borderWidth:2,tension:0.3,fill:true}] },
-    options: opts
+  cChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: entries.map(e => e.date),
+      datasets: [{
+        data: entries.map(e => e.total),
+        borderColor: '#f0c060',
+        backgroundColor: 'rgba(240,192,96,0.08)',
+        pointBackgroundColor: '#f0c060',
+        pointRadius: 4, borderWidth: 2, tension: 0.3, fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(10,12,18,0.95)',
+          titleFont: { family: 'DM Mono', size: 11 },
+          bodyFont:  { family: 'DM Mono', size: 12 },
+          padding: 10, cornerRadius: 8,
+          callbacks: { title: items => fmtDate(items[0].label) }
+        }
+      },
+      scales: {
+        x: {
+          grid:  { color: 'rgba(240,192,96,0.07)' },
+          ticks: { color: 'rgba(240,192,96,0.45)', font: { family: 'DM Mono', size: 9 },
+                   maxTicksLimit: 6, callback: function(v) { return fmtDate(this.getLabelForValue(v)); } }
+        },
+        y: {
+          grid:  { color: 'rgba(240,192,96,0.07)' },
+          ticks: { color: 'rgba(240,192,96,0.45)', font: { family: 'DM Mono', size: 9 } }
+        }
+      }
+    }
   });
 }
 
@@ -1644,6 +1753,172 @@ function renderGoal() {
     <div class="goal-progress"><div class="goal-progress-bar" style="width:${pct.toFixed(1)}%"></div></div>
   `;
 }
+
+// ============================================================
+//  NOTES
+// ============================================================
+let noteSaveTimer = null;
+
+function renderNotes() {
+  const date = getDate();
+  const ta   = document.getElementById('notesInput');
+  if (!ta) return;
+  ta.value = (db.notes && db.notes[date]) ? db.notes[date] : '';
+}
+
+function onNoteInput() {
+  clearTimeout(noteSaveTimer);
+  noteSaveTimer = setTimeout(saveNote, 800);
+}
+
+function saveNote() {
+  const date = getDate();
+  const val  = document.getElementById('notesInput').value;
+  if (!db.notes) db.notes = {};
+  if (val.trim()) {
+    db.notes[date] = val;
+  } else {
+    delete db.notes[date];
+  }
+  save();
+  // Flash the saved dot
+  const dot = document.getElementById('notesSavedDot');
+  dot.classList.add('show');
+  setTimeout(() => dot.classList.remove('show'), 1200);
+}
+
+// ============================================================
+//  HISTORY COMPARISON CHART
+// ============================================================
+const PERIOD_COLORS = [
+  '#78dc8c','#f0c060','#7eb8f0','#e07070','#b07ef0',
+  '#70d4d4','#f0a070','#a0d870','#f070b8','#90b0f0',
+];
+let compareChart = null;
+
+function renderCompareChart() {
+  const wrap = document.getElementById('histCompareWrap');
+  const legend = document.getElementById('histCompareLegend');
+
+  // Only show when not viewing a specific period
+  if (activePeriodId) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  const periods = (db.periods || []).filter(p => {
+    // Only periods that have at least 2 actual weight entries
+    const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p, d));
+    return entries.length >= 2;
+  });
+
+  if (compareChart) { compareChart.destroy(); compareChart = null; }
+
+  if (!periods.length) {
+    legend.innerHTML = '';
+    document.querySelector('.hist-compare-chart').innerHTML =
+      '<div class="hist-compare-empty">Add weight entries to 2+ periods to see comparison</div>';
+    return;
+  }
+  // Restore canvas if it was replaced by the empty message
+  const chartWrap = document.querySelector('.hist-compare-chart');
+  if (!chartWrap.querySelector('canvas')) {
+    chartWrap.innerHTML = '<canvas id="histCompareChart"></canvas>';
+  }
+
+  // Build datasets — x axis = day offset from period start (day 0, 1, 2…)
+  const datasets = periods.map((p, i) => {
+    const color = PERIOD_COLORS[i % PERIOD_COLORS.length];
+    const entries = Object.entries(db.weights)
+      .filter(([d]) => periodContainsDate(p, d))
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([d, v]) => {
+        const dayOffset = Math.round((new Date(d) - new Date(p.start)) / 86400000);
+        return { x: dayOffset, y: parseFloat(v), date: d };
+      });
+
+    return {
+      label: p.name,
+      data: entries,
+      borderColor: color,
+      backgroundColor: color + '18',
+      pointBackgroundColor: color,
+      pointRadius: 4,
+      pointHoverRadius: 7,
+      borderWidth: 2,
+      tension: 0.3,
+      fill: false,
+      parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+      // Store period id for click navigation
+      _periodId: p.id,
+      _periodStart: p.start,
+    };
+  });
+
+  // Legend
+  legend.innerHTML = datasets.map((ds, i) =>
+    `<div class="hcl-item"><div class="hcl-dot" style="background:${PERIOD_COLORS[i % PERIOD_COLORS.length]}"></div>${ds.label}</div>`
+  ).join('');
+
+  const ctx = document.getElementById('histCompareChart').getContext('2d');
+  compareChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      onClick: (event, elements) => {
+        try {
+          if (!elements.length) return;
+          const el    = elements[0];
+          const ds    = datasets[el.datasetIndex];
+          const point = ds.data[el.index];
+          switchTab('tracker');
+          const dp = document.getElementById('datePicker');
+          // Clear period filter if date is outside active period
+          if (activePeriodId) {
+            const ap = getActivePeriod();
+            if (!periodContainsDate(ap, point.date)) clearViewingPeriod();
+          }
+          dp.value = point.date;
+          render();
+          document.getElementById('weightInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch(err) {
+          console.error('[compare chart click]', err.message, err.stack);
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(10,12,18,.95)',
+          titleFont: {family:'DM Mono',size:10},
+          bodyFont: {family:'DM Mono',size:12},
+          padding: 9, cornerRadius: 7,
+          callbacks: {
+            title: items => {
+              const ds  = datasets[items[0].datasetIndex];
+              const pt  = ds.data[items[0].dataIndex];
+              return `${ds.label}  ·  ${fmtDate(pt.date)}`;
+            },
+            label: items => ` ${items.raw.y} kg  (day ${items.raw.x})`,
+            afterLabel: () => '  ↗ Click to open this date',
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Day from period start', color: 'rgba(180,220,185,.3)', font:{family:'DM Mono',size:9} },
+          grid:  { color: 'rgba(120,220,140,.06)' },
+          ticks: { color: 'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9}, maxTicksLimit: 8,
+                   callback: v => 'Day ' + v }
+        },
+        y: {
+          grid:  { color: 'rgba(120,220,140,.06)' },
+          ticks: { color: 'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9}, maxTicksLimit: 6,
+                   callback: v => v + ' kg' }
+        }
+      }
+    }
+  });
+}
 // ============================================================
 //  LATE NIGHT BANNER  (visible 20:00–04:00 local time)
 // ============================================================
@@ -1769,6 +2044,7 @@ function setViewingPeriod(id) {
 // ── Render ───────────────────────────────────────────────────
 function renderHistory() {
   if (!db.periods) db.periods = [];
+  renderCompareChart();
   const list = document.getElementById('histList');
 
   // Destroy old charts
@@ -1879,15 +2155,6 @@ function renderHistory() {
   });
 }
 
-// ============================================================
-//  LATE NIGHT BANNER  (visible 20:00–04:00 local time)
-// ============================================================
-function checkLateBanner() {
-  const h   = new Date().getHours();
-  const show = h >= 20 || h < 4;
-  const el  = document.getElementById('lateBanner');
-  el.classList.toggle('hidden', !show);
-}
 
 // ============================================================
 //  RENDER ALL
@@ -1899,6 +2166,7 @@ function render() {
   renderWeight();
   renderWeightChart();
   renderCalChart();
+  renderNotes();
 }
 function updateActivePeriodBanner() {
   const bar = document.getElementById('activePeriodBar');
@@ -1934,6 +2202,7 @@ function clearViewingPeriod() {
   dp.max = todayStr();
   render();
   if (document.getElementById('panel-history').classList.contains('active')) renderHistory();
+  renderCompareChart();
 }
 
 // ============================================================
@@ -1959,6 +2228,20 @@ function clearViewingPeriod() {
 
   render();
 })();
+
+// Global error handler — logs full details for cross-origin and same-origin errors
+window.addEventListener('error', function(e) {
+  // "Script error." with no details = cross-origin script, browser intentionally hides details
+  // crossorigin="anonymous" on the script tag + CORS headers from CDN needed to expose them
+  if (e.message === 'Script error.' && !e.filename) {
+    return true; // suppress — cross-origin internal throw, app works fine
+  }
+  console.error('[FitFriend error]', e.message, '\nat', e.filename + ':' + e.lineno + ':' + e.colno,
+    '\n', e.error && e.error.stack);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('[FitFriend unhandled promise]', e.reason);
+});
 </script>
 </body>
 </html>
