@@ -279,6 +279,115 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .hist-sum-l{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(180,220,185,.35);margin-bottom:3px}
 .hist-sum-v{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:#78dc8c}
 
+
+/* ---- INLINE EDIT ---- */
+.editable{cursor:text;border-radius:4px;transition:background .15s;padding:1px 4px;margin:-1px -4px}
+.editable:hover{background:rgba(120,220,140,.08)}
+.editable:hover::after{content:' ✎';font-size:10px;color:rgba(120,220,140,.4);margin-left:4px}
+.inline-edit-input{
+  background:rgba(120,220,140,.08);border:1px solid rgba(120,220,140,.35);border-radius:6px;
+  color:#d4edd8;font-family:'DM Mono',monospace;outline:none;
+  padding:2px 8px;
+}
+.inline-edit-input.cat-edit{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;min-width:120px}
+.inline-edit-input.item-edit{font-size:12px;min-width:80px}
+
+
+/* ======================================================
+   PERIODS (History tab redesign)
+   ====================================================== */
+
+/* active period banner on tracker */
+.active-period-bar{
+  display:none;margin:10px 16px 0;padding:11px 16px;
+  background:rgba(120,220,140,.07);border:1px solid rgba(120,220,140,.25);border-radius:12px;
+  font-size:12px;display:flex;align-items:center;gap:10px;
+}
+.active-period-bar.hidden{display:none!important}
+.apb-dot{width:7px;height:7px;border-radius:50%;background:#78dc8c;flex-shrink:0;animation:pulse 2s infinite}
+.apb-text{flex:1;color:rgba(180,220,185,.7)}
+.apb-text b{color:#78dc8c}
+.apb-clear{background:none;border:1px solid rgba(120,220,140,.2);color:rgba(120,220,140,.5);border-radius:6px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;white-space:nowrap}
+.apb-clear:hover{color:#78dc8c;border-color:rgba(120,220,140,.5)}
+
+/* period card */
+.period-card{
+  margin-bottom:10px;border:1px solid rgba(120,220,140,.1);border-radius:14px;overflow:hidden;
+  transition:border-color .2s;
+}
+.period-card.is-current{border-color:rgba(120,220,140,.35)}
+.period-card.is-viewing{border-color:#78dc8c;box-shadow:0 0 0 1px rgba(120,220,140,.15)}
+.period-card-head{
+  padding:13px 16px;background:rgba(120,220,140,.04);
+  display:flex;align-items:flex-start;gap:10px;
+}
+.period-card.is-current .period-card-head{background:rgba(120,220,140,.07)}
+.period-card.is-viewing .period-card-head{background:rgba(120,220,140,.1)}
+.period-card-info{flex:1;min-width:0}
+.period-card-name{
+  font-family:'Syne',sans-serif;font-size:14px;color:#d4edd8;margin-bottom:3px;
+  cursor:text;border-radius:4px;display:inline-block;
+}
+.period-card-name:hover{background:rgba(120,220,140,.08)}
+.period-card-name:hover::after{content:' ✎';font-size:10px;color:rgba(120,220,140,.35)}
+.period-card-dates{font-size:11px;color:rgba(120,220,140,.5);letter-spacing:.3px}
+.period-badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.pbadge{
+  font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:4px;font-weight:600;
+}
+.pbadge-current{background:rgba(120,220,140,.15);color:#78dc8c;border:1px solid rgba(120,220,140,.3)}
+.pbadge-done{background:rgba(180,220,185,.07);color:rgba(180,220,185,.4);border:1px solid rgba(180,220,185,.12)}
+.pbadge-viewing{background:rgba(120,220,140,.2);color:#78dc8c;border:1px solid rgba(120,220,140,.4)}
+
+/* card action buttons */
+.period-card-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.btn-pact{
+  background:none;border:1px solid rgba(120,220,140,.18);color:rgba(120,220,140,.6);
+  border-radius:7px;padding:5px 10px;font-family:'DM Mono',monospace;font-size:10px;
+  cursor:pointer;white-space:nowrap;letter-spacing:.3px;
+}
+.btn-pact:hover{background:rgba(120,220,140,.1);color:#78dc8c}
+.btn-pact.danger{border-color:rgba(220,80,80,.25);color:rgba(220,80,80,.5)}
+.btn-pact.danger:hover{background:rgba(220,80,80,.08);color:#e07070}
+.btn-pact.primary{background:rgba(120,220,140,.12);border-color:rgba(120,220,140,.3);color:#78dc8c}
+.btn-pact.primary:hover{background:rgba(120,220,140,.2)}
+.btn-pact.viewing-on{background:rgba(120,220,140,.2);border-color:#78dc8c;color:#78dc8c}
+
+/* period stats strip */
+.period-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(120,220,140,.06)}
+.period-stat{background:#080b10;padding:10px;text-align:center}
+.period-stat-l{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(180,220,185,.3);margin-bottom:2px}
+.period-stat-v{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#78dc8c}
+.period-stat-v.amber{color:#f0c060}
+.period-stat-v.muted{color:rgba(180,220,185,.35)}
+
+/* period mini chart */
+.period-chart-wrap{height:90px;padding:8px 12px 6px;background:#080b10;border-top:1px solid rgba(120,220,140,.06)}
+
+/* edit period modal */
+.period-modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;
+  align-items:center;justify-content:center;padding:20px;
+}
+.period-modal-overlay.open{display:flex}
+.period-modal{
+  background:#0d1a10;border:1px solid rgba(120,220,140,.22);border-radius:16px;
+  padding:22px;width:100%;max-width:380px;
+}
+.period-modal h3{font-family:'Syne',sans-serif;font-size:16px;color:#78dc8c;margin-bottom:16px}
+.pm-field{margin-bottom:12px}
+.pm-field label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:5px}
+.pm-field input{width:100%;padding:10px 12px;font-size:13px}
+.pm-check{display:flex;align-items:center;gap:10px;margin-bottom:14px;cursor:pointer}
+.pm-check input[type=checkbox]{width:16px;height:16px;accent-color:#78dc8c;cursor:pointer}
+.pm-check span{font-size:12px;color:rgba(180,220,185,.6)}
+.pm-btns{display:flex;gap:10px}
+.pm-btns .btn{flex:1;padding:12px}
+
+/* no periods empty */
+.periods-empty{padding:36px 20px;text-align:center;color:rgba(180,220,185,.22);font-size:12px;line-height:2}
+.periods-empty-icon{font-size:30px;display:block;margin-bottom:8px;opacity:.4}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -336,6 +445,13 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
 <!-- ===================== TAB: TRACKER ===================== -->
 <div class="tab-panel active" id="panel-tracker">
+
+  <!-- ACTIVE PERIOD BANNER -->
+  <div class="active-period-bar hidden" id="activePeriodBar">
+    <div class="apb-dot"></div>
+    <span class="apb-text" id="apbText">Viewing period</span>
+    <button class="apb-clear" onclick="clearViewingPeriod()">✕ All data</button>
+  </div>
 
   <!-- LATE NIGHT BANNER -->
   <div class="late-banner hidden" id="lateBanner">
@@ -439,44 +555,54 @@ input::placeholder{color:rgba(180,220,185,.3)}
   </div>
 </div><!-- /panel-food -->
 
+<!-- PERIOD EDIT MODAL -->
+<div class="period-modal-overlay" id="periodModal">
+  <div class="period-modal">
+    <h3 id="pmTitle">New Period</h3>
+    <div class="pm-field">
+      <label>Period name</label>
+      <input type="text" id="pmName" placeholder="e.g. Summer Cut 2025" maxlength="50" autocomplete="off"/>
+    </div>
+    <div class="pm-field">
+      <label>Start date</label>
+      <input type="date" id="pmStart"/>
+    </div>
+    <div class="pm-check" onclick="togglePmCurrent()">
+      <input type="checkbox" id="pmCurrentCb"/>
+      <span>Current (ongoing — no end date yet)</span>
+    </div>
+    <div class="pm-field" id="pmEndWrap">
+      <label>End date</label>
+      <input type="date" id="pmEnd"/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="pm-field" style="margin-bottom:0">
+        <label>Start weight (kg)</label>
+        <input type="number" id="pmStartW" placeholder="e.g. 85.0" step="0.1" min="20" max="300"/>
+      </div>
+      <div class="pm-field" id="pmEndWWrap" style="margin-bottom:0">
+        <label>End weight (kg)</label>
+        <input type="number" id="pmEndW" placeholder="e.g. 79.5" step="0.1" min="20" max="300"/>
+      </div>
+    </div>
+    <div class="pm-btns">
+      <button class="btn" style="background:none;border:1px solid rgba(180,220,185,.15);color:rgba(180,220,185,.5)" onclick="closePeriodModal()">Cancel</button>
+      <button class="btn btn-green" onclick="savePeriodModal()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== TAB: HISTORY ===================== -->
 <div class="tab-panel" id="panel-history">
 
-  <!-- ADD PERIOD FORM -->
-  <div class="hist-section">
-    <div class="hist-sec-label">Add Weight Loss Period</div>
-    <div class="period-grid">
-      <div class="period-field">
-        <label>Start date</label>
-        <input type="date" id="histStart"/>
-      </div>
-      <div class="period-field">
-        <label>End date</label>
-        <input type="date" id="histEnd"/>
-      </div>
-    </div>
-    <div class="period-weights">
-      <div>
-        <label>Start weight (kg)</label>
-        <input type="number" id="histStartW" placeholder="e.g. 85.0" step="0.1" min="20" max="300"/>
-      </div>
-      <div>
-        <label>End weight (kg)</label>
-        <input type="number" id="histEndW" placeholder="e.g. 79.5" step="0.1" min="20" max="300"/>
-      </div>
-    </div>
-    <button class="btn-add-period" onclick="addHistoryPeriod()">+ Save Period</button>
-  </div>
-
-  <!-- OVERALL SUMMARY -->
-  <div class="hist-section" id="histSummarySection" style="display:none">
-    <div class="hist-sec-label">Overall Summary</div>
-    <div class="hist-summary" id="histSummary"></div>
+  <!-- NEW PERIOD BUTTON -->
+  <div class="hist-section" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px">
+    <span class="hist-sec-label" style="margin-bottom:0">Periods</span>
+    <button class="btn-add-cat" onclick="openPeriodModal(null)">+ New Period</button>
   </div>
 
   <!-- PERIODS LIST -->
-  <div class="hist-section">
-    <div class="hist-sec-label">Periods</div>
+  <div class="hist-section" style="padding-top:0;border-top:none;margin-top:0">
     <div id="histList"></div>
   </div>
 
@@ -516,6 +642,8 @@ let tokenRefreshTimer = null;
 let sugItems     = [];   // current visible suggestions
 let sugFocusIdx  = -1;   // keyboard focus index
 let sugExpanded  = false; // whether "show all" was clicked
+// active period filter
+let activePeriodId = localStorage.getItem('wt_active_period') ? parseInt(localStorage.getItem('wt_active_period')) : null;
 
 // ============================================================
 //  LOCAL STORAGE
@@ -530,7 +658,7 @@ function loadLocal() {
   } catch { return freshDb(); }
 }
 function freshDb() {
-  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [] };
+  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [] }; // periods: [{id,name,start,end|null,startW,endW|null,current,done}]
 }
 function saveLocal() {
   try { localStorage.setItem(DATA_KEY, JSON.stringify(db)); } catch {}
@@ -819,9 +947,18 @@ function flash(msg, err=false){
   flashTimer = setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.style.display='none',200); }, 2500);
 }
 function getDate(){ return document.getElementById('datePicker').value || todayStr(); }
+function getActivePeriod() {
+  if (!activePeriodId) return null;
+  return (db.periods || []).find(p => p.id === activePeriodId) || null;
+}
+function periodContainsDate(p, dateStr) {
+  if (!p) return true;
+  if (dateStr < p.start) return false;
+  if (p.end && dateStr > p.end) return false;
+  return true;
+}
 function setToday(){
   document.getElementById('datePicker').value = todayStr();
-  document.getElementById('histEnd').value   = todayStr();
   render();
 }
 function shiftDay(delta) {
@@ -831,7 +968,13 @@ function shiftDay(delta) {
   d.setDate(d.getDate() + delta);
   const next = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   const today = todayStr();
-  if (next > today) return; // don't navigate to future
+  if (next > today) return;
+  // Clamp to active period bounds
+  const p = getActivePeriod();
+  if (p) {
+    if (next < p.start) return;
+    if (p.end && next > p.end) return;
+  }
   dp.value = next;
   render();
 }
@@ -1003,6 +1146,16 @@ function deleteCal(date, id) {
 function renderCalories() {
   const date    = getDate();
   document.getElementById('calDateLabel').textContent = fmtDate(date);
+  // If date is outside active period, show nothing
+  const ap = getActivePeriod();
+  if (ap && !periodContainsDate(ap, date)) {
+    const total = 0;
+    document.getElementById('calTotal').textContent = '—';
+    document.getElementById('calTotal').style.color = 'rgba(180,220,185,.3)';
+    document.getElementById('calUnit').style.color  = 'rgba(180,220,185,.3)';
+    document.getElementById('calEntries').innerHTML = '';
+    return;
+  }
   const entries = db.calories[date] || [];
   const total   = entries.reduce((s,e) => s + e.amount, 0);
   const color   = calColor(total);
@@ -1043,7 +1196,17 @@ function deleteWeight(date) {
   save(); renderWeight(); renderWeightChart();
 }
 function renderWeight() {
-  const date = getDate(), w = db.weights[date];
+  const date = getDate();
+  const ap = getActivePeriod();
+  const outOfPeriod = ap && !periodContainsDate(ap, date);
+  const weightInput = document.getElementById('weightInput');
+  const saveBtn = weightInput.nextElementSibling;
+  if (outOfPeriod) {
+    weightInput.disabled = true; saveBtn.disabled = true; saveBtn.style.opacity = '.4';
+  } else {
+    weightInput.disabled = false; saveBtn.disabled = false; saveBtn.style.opacity = '';
+  }
+  const w = outOfPeriod ? undefined : db.weights[date];
   const display = document.getElementById('weightDisplay');
   const hint    = document.getElementById('weightHint');
   if (w) {
@@ -1057,7 +1220,8 @@ function renderWeight() {
   renderStats(); renderWeightLog(); renderGoal();
 }
 function renderStats() {
-  const entries = Object.entries(db.weights).sort(([a],[b]) => a.localeCompare(b));
+  const p = getActivePeriod();
+  const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b));
   const grid    = document.getElementById('statsGrid');
   if (entries.length < 2) { grid.style.display='none'; return; }
   grid.style.display='grid';
@@ -1073,7 +1237,8 @@ function renderStats() {
 }
 function renderWeightLog() {
   const wrap = document.getElementById('logWrap');
-  const entries = Object.entries(db.weights).sort(([a],[b]) => b.localeCompare(a));
+  const p = getActivePeriod();
+  const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => b.localeCompare(a));
   if (!entries.length) { wrap.style.display='none'; return; }
   wrap.style.display='block';
   const list = document.getElementById('weightLog');
@@ -1110,7 +1275,8 @@ const chartDefaults = {
   }
 };
 function renderWeightChart() {
-  const entries = Object.entries(db.weights).sort(([a],[b]) => a.localeCompare(b));
+  const p = getActivePeriod();
+  const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b));
   const wrap = document.getElementById('weightChartWrap'), noData = document.getElementById('weightNoData');
   if (entries.length < 2) { wrap.style.display='none'; noData.style.display='flex'; return; }
   wrap.style.display='block'; noData.style.display='none';
@@ -1123,7 +1289,8 @@ function renderWeightChart() {
   });
 }
 function renderCalChart() {
-  const entries = Object.entries(db.calories).sort(([a],[b]) => a.localeCompare(b))
+  const p = getActivePeriod();
+  const entries = Object.entries(db.calories).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b))
     .map(([date,es]) => ({ date, total: es.reduce((s,e) => s+e.amount, 0) }));
   const wrap = document.getElementById('calChartWrap');
   if (entries.length < 2) { wrap.style.display='none'; return; }
@@ -1265,8 +1432,9 @@ function renderFoodDb() {
     // Table rows HTML
     const rowsHtml = catItems.length ? catItems.map(item => {
       const portion = Math.round((item.kcalPer100 * item.grams) / 100 * 10) / 10;
+      const safeName = item.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       return `<tr>
-        <td class="td-name">${item.name}</td>
+        <td class="td-name editable" ondblclick="startEditItem(${item.id},'${safeName}',this)" title="Double-click to rename">${item.name}</td>
         <td>${item.grams}g</td>
         <td class="td-kcal">${item.kcalPer100}</td>
         <td class="td-portion">${portion}</td>
@@ -1275,8 +1443,8 @@ function renderFoodDb() {
     }).join('') : `<tr><td colspan="5" style="text-align:center;color:rgba(180,220,185,.2);padding:16px;font-size:11px;letter-spacing:1px">NO PRODUCTS YET</td></tr>`;
 
     block.innerHTML = `
-      <div class="cat-head" onclick="toggleCat(${cat.id})">
-        <span class="cat-name">${cat.name}</span>
+      <div class="cat-head" onclick="toggleCat(${cat.id})" id="cathead-${cat.id}">
+        <span class="cat-name editable" ondblclick="event.stopPropagation();startEditCat(${cat.id},'${cat.name.replace(/'/g,String.fromCharCode(39))}',document.getElementById('cathead-${cat.id}'))" title="Double-click to rename">${cat.name}</span>
         <div class="cat-meta">
           <span class="cat-count">${catItems.length} item${catItems.length !== 1 ? 's' : ''}</span>
           <button class="btn-row-del" onclick="event.stopPropagation();deleteCategory(${cat.id})" style="margin-left:4px">✕</button>
@@ -1314,6 +1482,72 @@ function renderFoodDb() {
 }
 
 
+
+
+// ============================================================
+//  INLINE EDITING (category name + food item name)
+// ============================================================
+function startEditCat(catId, currentName, el) {
+  if (el.querySelector('.inline-edit-input')) return; // already editing
+  const span = el.querySelector('.cat-name');
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = currentName;
+  inp.className = 'inline-edit-input cat-edit';
+  inp.maxLength = 40;
+
+  function commit() {
+    const val = inp.value.trim();
+    if (val && val !== currentName) {
+      const cat = db.food.categories.find(c => c.id === catId);
+      if (cat) { cat.name = val; save(); }
+    }
+    renderFoodDb();
+  }
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { renderFoodDb(); }
+    e.stopPropagation();
+  });
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('click', e => e.stopPropagation());
+
+  span.replaceWith(inp);
+  inp.focus();
+  inp.select();
+}
+
+function startEditItem(itemId, currentName, tdEl) {
+  if (tdEl.querySelector('.inline-edit-input')) return;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.value = currentName;
+  inp.className = 'inline-edit-input item-edit';
+  inp.maxLength = 60;
+
+  function commit() {
+    const val = inp.value.trim();
+    if (val && val !== currentName) {
+      const item = db.food.items.find(i => i.id === itemId);
+      if (item) { item.name = val; save(); }
+    }
+    renderFoodDb();
+  }
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { renderFoodDb(); }
+    e.stopPropagation();
+  });
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('click', e => e.stopPropagation());
+
+  tdEl.innerHTML = '';
+  tdEl.appendChild(inp);
+  inp.focus();
+  inp.select();
+}
 
 // ============================================================
 //  GOAL / PREDICTION
@@ -1421,190 +1655,224 @@ function checkLateBanner() {
 }
 
 // ============================================================
-//  HISTORY TAB
+//  HISTORY TAB  — period presets
 // ============================================================
-
-// chart instances keyed by period id
 const histCharts = {};
+let editingPeriodId = null; // null = new, number = editing existing
 
-function addHistoryPeriod() {
-  const s  = document.getElementById('histStart').value;
-  const e  = document.getElementById('histEnd').value;
-  const sw = parseFloat(document.getElementById('histStartW').value.replace(',','.'));
-  const ew = parseFloat(document.getElementById('histEndW').value.replace(',','.'));
+// ── Modal open/close ─────────────────────────────────────────
+function openPeriodModal(periodId) {
+  editingPeriodId = periodId;
+  const modal = document.getElementById('periodModal');
+  const p = periodId ? (db.periods || []).find(x => x.id === periodId) : null;
 
-  if (!s)                  { flash('Select a start date', true); return; }
-  if (!e)                  { flash('Select an end date', true);   return; }
-  if (s >= e)              { flash('End date must be after start date', true); return; }
-  if (!sw || sw < 20 || sw > 300) { flash('Enter a valid start weight', true); return; }
-  if (!ew || ew < 20 || ew > 300) { flash('Enter a valid end weight', true);   return; }
+  document.getElementById('pmTitle').textContent = p ? 'Edit Period' : 'New Period';
+  document.getElementById('pmName').value    = p ? p.name    : '';
+  document.getElementById('pmStart').value   = p ? p.start   : '';
+  document.getElementById('pmEnd').value     = p ? (p.end || '') : '';
+  document.getElementById('pmStartW').value  = p ? (p.startW || '') : '';
+  document.getElementById('pmEndW').value    = p ? (p.endW   || '') : '';
+  document.getElementById('pmCurrentCb').checked = p ? !!p.current : false;
+  updatePmCurrentUI();
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('pmName').focus(), 100);
+}
+function closePeriodModal() {
+  document.getElementById('periodModal').classList.remove('open');
+  editingPeriodId = null;
+}
+document.getElementById('periodModal').addEventListener('mousedown', e => {
+  if (e.target === document.getElementById('periodModal')) closePeriodModal();
+});
+document.getElementById('pmName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') savePeriodModal();
+  if (e.key === 'Escape') closePeriodModal();
+});
+function togglePmCurrent() {
+  const cb = document.getElementById('pmCurrentCb');
+  cb.checked = !cb.checked;
+  updatePmCurrentUI();
+}
+function updatePmCurrentUI() {
+  const isCurrent = document.getElementById('pmCurrentCb').checked;
+  document.getElementById('pmEndWrap').style.display   = isCurrent ? 'none' : '';
+  document.getElementById('pmEndWWrap').style.display  = isCurrent ? 'none' : '';
+}
+
+// ── Save / validate ──────────────────────────────────────────
+function savePeriodModal() {
+  const name    = document.getElementById('pmName').value.trim();
+  const start   = document.getElementById('pmStart').value;
+  const isCurrent = document.getElementById('pmCurrentCb').checked;
+  const end     = isCurrent ? null : document.getElementById('pmEnd').value;
+  const startW  = parseFloat(document.getElementById('pmStartW').value) || null;
+  const endW    = isCurrent ? null : (parseFloat(document.getElementById('pmEndW').value) || null);
+
+  if (!name)  { flash('Enter a period name', true); return; }
+  if (!start) { flash('Select a start date', true); return; }
+  if (!isCurrent && end && end <= start) { flash('End date must be after start', true); return; }
 
   if (!db.periods) db.periods = [];
-  db.periods.push({ id: Date.now(), start: s, end: e, startW: sw, endW: ew });
-  // Sort newest first
+
+  if (editingPeriodId) {
+    const idx = db.periods.findIndex(p => p.id === editingPeriodId);
+    if (idx !== -1) {
+      db.periods[idx] = { ...db.periods[idx], name, start, end, startW, endW, current: isCurrent, done: !isCurrent && !!end };
+    }
+  } else {
+    db.periods.push({ id: Date.now(), name, start, end, startW, endW, current: isCurrent, done: false });
+  }
+
   db.periods.sort((a,b) => b.start.localeCompare(a.start));
   save();
-  // Clear form
-  document.getElementById('histStart').value  = '';
-  document.getElementById('histEnd').value    = '';
-  document.getElementById('histStartW').value = '';
-  document.getElementById('histEndW').value   = '';
+  closePeriodModal();
   renderHistory();
-  flash('Period saved ✓');
+  flash(editingPeriodId ? 'Period updated ✓' : 'Period saved ✓');
 }
 
-function deleteHistoryPeriod(id) {
-  db.periods = db.periods.filter(p => p.id !== id);
-  save();
+// ── Delete ───────────────────────────────────────────────────
+function deletePeriod(id) {
+  db.periods = (db.periods || []).filter(p => p.id !== id);
+  if (activePeriodId === id) clearViewingPeriod();
+  save(); renderHistory();
+}
+
+// ── Finish current period ────────────────────────────────────
+function finishPeriod(id) {
+  const p = (db.periods || []).find(x => x.id === id);
+  if (!p) return;
+  p.end     = todayStr();
+  p.current = false;
+  p.done    = true;
+  save(); renderHistory();
+  flash('Period finished ✓');
+}
+
+// ── View period (filter tracker) ─────────────────────────────
+function setViewingPeriod(id) {
+  activePeriodId = (activePeriodId === id) ? null : id;
+  if (activePeriodId) {
+    localStorage.setItem('wt_active_period', activePeriodId);
+    // Jump datepicker to period start
+    const p = getActivePeriod();
+    if (p) {
+      const dp = document.getElementById('datePicker');
+      dp.value = p.start;
+    }
+  } else {
+    localStorage.removeItem('wt_active_period');
+  }
+  render();
   renderHistory();
 }
 
-function periodDays(p) {
-  return Math.round((new Date(p.end) - new Date(p.start)) / 86400000);
-}
-
-function periodLost(p) {
-  return parseFloat((p.startW - p.endW).toFixed(2));
-}
-
+// ── Render ───────────────────────────────────────────────────
 function renderHistory() {
   if (!db.periods) db.periods = [];
   const list = document.getElementById('histList');
-  const summSec = document.getElementById('histSummarySection');
 
-  // ── overall summary ──────────────────────────────────────────
-  if (db.periods.length >= 2) {
-    summSec.style.display = 'block';
-    const totalDays = db.periods.reduce((s,p) => s + periodDays(p), 0);
-    const totalLost = db.periods.reduce((s,p) => s + periodLost(p), 0);
-    const avgRate   = totalDays > 0 ? (totalLost / totalDays).toFixed(3) : '—';
-    const bestPeriod = [...db.periods].sort((a,b) => {
-      const ra = periodLost(a)/periodDays(a), rb = periodLost(b)/periodDays(b);
-      return rb - ra;
-    })[0];
-    document.getElementById('histSummary').innerHTML = `
-      <div class="hist-sum-stat"><div class="hist-sum-l">Total periods</div><div class="hist-sum-v">${db.periods.length}</div></div>
-      <div class="hist-sum-stat"><div class="hist-sum-l">Total days</div><div class="hist-sum-v">${totalDays}</div></div>
-      <div class="hist-sum-stat"><div class="hist-sum-l">Total lost</div><div class="hist-sum-v">${totalLost > 0 ? '−' : '+'}${Math.abs(totalLost).toFixed(1)} kg</div></div>
-      <div class="hist-sum-stat"><div class="hist-sum-l">Avg rate</div><div class="hist-sum-v">${avgRate !== '—' ? (totalLost > 0 ? '−' : '+') + Math.abs(avgRate) + ' kg/d' : '—'}</div></div>
-    `;
-  } else {
-    summSec.style.display = 'none';
-  }
-
-  // ── periods list ─────────────────────────────────────────────
-  if (!db.periods.length) {
-    list.innerHTML = '<div class="hist-empty"><span class="hist-empty-icon">📉</span>No periods yet.<br>Add your first weight loss period above.</div>';
-    return;
-  }
-
-  // Destroy old charts to avoid canvas reuse errors
+  // Destroy old charts
   Object.keys(histCharts).forEach(k => {
     if (histCharts[k]) { histCharts[k].destroy(); delete histCharts[k]; }
   });
 
+  if (!db.periods.length) {
+    list.innerHTML = '<div class="periods-empty"><span class="periods-empty-icon">📉</span>No periods yet.<br>Tap <b>+ New Period</b> to add your first.</div>';
+    return;
+  }
+
   list.innerHTML = '';
   db.periods.forEach(p => {
-    const days    = periodDays(p);
-    const lost    = periodLost(p);
-    const isLoss  = lost > 0;
-    const rate    = days > 0 ? (lost / days).toFixed(3) : '0';
-    const lostStr = (isLoss ? '−' : '+') + Math.abs(lost).toFixed(1) + ' kg';
-    const rateStr = (isLoss ? '−' : '+') + Math.abs(rate) + ' kg/day';
-    const statClass = isLoss ? '' : 'amber';
+    const isViewing = activePeriodId === p.id;
+    const days = p.end ? Math.round((new Date(p.end) - new Date(p.start)) / 86400000) : Math.round((new Date() - new Date(p.start)) / 86400000);
+
+    // Actual weights within this period
+    const wEntries = Object.entries(db.weights)
+      .filter(([d]) => periodContainsDate(p, d))
+      .sort(([a],[b]) => a.localeCompare(b))
+      .map(([d,v]) => ({ d, v: parseFloat(v) }));
+
+    const lost = (p.startW && wEntries.length)
+      ? parseFloat((p.startW - wEntries[wEntries.length-1].v).toFixed(1))
+      : (p.startW && p.endW ? parseFloat((p.startW - p.endW).toFixed(1)) : null);
+    const rate = (lost !== null && days > 0) ? (lost / days).toFixed(3) : null;
+
+    const datesStr = p.end
+      ? `${fmtDate(p.start)} → ${fmtDate(p.end)}`
+      : `${fmtDate(p.start)} → ongoing`;
 
     const card = document.createElement('div');
-    card.className = 'hist-card';
-    card.id = 'hcard-' + p.id;
+    card.className = 'period-card' + (p.current ? ' is-current' : '') + (isViewing ? ' is-viewing' : '');
+    card.id = 'pcard-' + p.id;
+
+    const badgesHtml = [
+      p.current ? '<span class="pbadge pbadge-current">● Current</span>' : '',
+      p.done    ? '<span class="pbadge pbadge-done">✓ Done</span>'       : '',
+      isViewing ? '<span class="pbadge pbadge-viewing">👁 Viewing</span>' : '',
+    ].filter(Boolean).join('');
+
     card.innerHTML = `
-      <div class="hist-card-head">
-        <div class="hist-card-dates">${fmtDate(p.start)} → ${fmtDate(p.end)}</div>
-        <div class="hist-card-sub">${p.startW} kg → ${p.endW} kg</div>
-        <button class="hist-card-del" onclick="deleteHistoryPeriod(${p.id})">✕</button>
-      </div>
-      <div class="hist-card-stats">
-        <div class="hist-stat">
-          <div class="hist-stat-l">Lost</div>
-          <div class="hist-stat-v ${statClass}">${lostStr}</div>
+      <div class="period-card-head">
+        <div class="period-card-info">
+          <div class="period-card-name" ondblclick="openPeriodModal(${p.id})" title="Double-click to edit">${p.name}</div>
+          <div class="period-card-dates">${datesStr}</div>
+          ${badgesHtml ? `<div class="period-badges">${badgesHtml}</div>` : ''}
         </div>
-        <div class="hist-stat">
-          <div class="hist-stat-l">Days</div>
-          <div class="hist-stat-v">${days}</div>
-        </div>
-        <div class="hist-stat">
-          <div class="hist-stat-l">Per day</div>
-          <div class="hist-stat-v ${statClass}">${rateStr}</div>
+        <div class="period-card-actions">
+          <button class="btn-pact ${isViewing ? 'viewing-on primary' : ''}" onclick="setViewingPeriod(${p.id})">
+            ${isViewing ? '👁 Viewing' : '👁 View'}
+          </button>
+          <button class="btn-pact" onclick="openPeriodModal(${p.id})">✎ Edit</button>
+          ${p.current ? `<button class="btn-pact" onclick="finishPeriod(${p.id})">✓ Finish</button>` : ''}
+          <button class="btn-pact danger" onclick="deletePeriod(${p.id})">✕ Delete</button>
         </div>
       </div>
-      <div class="hist-card-chart">
-        <canvas id="hchart-${p.id}"></canvas>
-      </div>`;
+      <div class="period-stats">
+        <div class="period-stat">
+          <div class="period-stat-l">Days</div>
+          <div class="period-stat-v">${days}</div>
+        </div>
+        <div class="period-stat">
+          <div class="period-stat-l">Lost</div>
+          <div class="period-stat-v ${lost !== null && lost > 0 ? '' : 'amber'}">
+            ${lost !== null ? (lost > 0 ? '−' : '+') + Math.abs(lost) + ' kg' : '—'}
+          </div>
+        </div>
+        <div class="period-stat">
+          <div class="period-stat-l">Per day</div>
+          <div class="period-stat-v muted">${rate !== null ? (parseFloat(rate) > 0 ? '−' : '+') + Math.abs(rate) + ' kg' : '—'}</div>
+        </div>
+      </div>
+      <div class="period-chart-wrap"><canvas id="hchart-${p.id}"></canvas></div>`;
+
     list.appendChild(card);
 
-    // Draw mini chart: linear interpolation start→end over the period
-    const labels = [], data = [];
-    for (let i = 0; i <= Math.min(days, 30); i++) {
-      const d = new Date(p.start + 'T12:00:00');
-      d.setDate(d.getDate() + Math.round(i * (days / Math.min(days, 30))));
-      labels.push(d.toLocaleDateString('en-GB', {day:'2-digit',month:'short'}));
-      data.push(parseFloat((p.startW + (p.endW - p.startW) * (i / Math.min(days, 30))).toFixed(2)));
-    }
-    // Overlay actual weight entries that fall within this period
-    const actualPoints = Object.entries(db.weights)
-      .filter(([dt]) => dt >= p.start && dt <= p.end)
-      .sort(([a],[b]) => a.localeCompare(b))
-      .map(([dt,w]) => ({
-        x: new Date(dt + 'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short'}),
-        y: parseFloat(w)
-      }));
-
+    // Mini chart — actual data or flat line if none
     const ctx = document.getElementById('hchart-' + p.id).getContext('2d');
+    const actualDataset = wEntries.length >= 2 ? [{
+      label: 'Weight',
+      data: wEntries.map(e => ({ x: e.d, y: e.v })),
+      borderColor: p.current ? '#78dc8c' : 'rgba(120,220,140,.6)',
+      backgroundColor: 'rgba(120,220,140,.08)',
+      pointBackgroundColor: '#78dc8c', pointRadius: 3,
+      borderWidth: 2, tension: 0.3, fill: true,
+      parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+    }] : [];
+
     histCharts[p.id] = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          {
-            label: 'Trend',
-            data,
-            borderColor: 'rgba(120,220,140,0.3)',
-            borderWidth: 1,
-            borderDash: [4,3],
-            pointRadius: 0,
-            tension: 0,
-            fill: false,
-          },
-          ...(actualPoints.length ? [{
-            label: 'Actual',
-            data: actualPoints,
-            borderColor: '#78dc8c',
-            backgroundColor: 'rgba(120,220,140,0.15)',
-            pointBackgroundColor: '#78dc8c',
-            pointRadius: 3,
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true,
-            parsing: { xAxisKey: 'x', yAxisKey: 'y' },
-          }] : []),
-        ]
-      },
+      data: { datasets: actualDataset },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(10,12,18,0.95)',
-            titleFont: {family:'DM Mono',size:10},
-            bodyFont:  {family:'DM Mono',size:11},
-            padding: 8, cornerRadius: 7,
-          }
-        },
+        plugins: { legend: { display: false }, tooltip: {
+          backgroundColor: 'rgba(10,12,18,.95)',
+          titleFont: {family:'DM Mono',size:9}, bodyFont: {family:'DM Mono',size:11},
+          padding: 7, cornerRadius: 6,
+          callbacks: { title: items => fmtDate(items[0].raw.x) }
+        }},
         scales: {
-          x: { display: false },
-          y: {
-            grid:  { color: 'rgba(120,220,140,0.07)' },
-            ticks: { color: 'rgba(180,220,185,0.4)', font:{family:'DM Mono',size:9}, maxTicksLimit: 4 }
-          }
+          x: { type: 'category', display: false },
+          y: { grid: { color: 'rgba(120,220,140,.06)' }, ticks: { color: 'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9}, maxTicksLimit: 3 } }
         }
       }
     });
@@ -1612,13 +1880,60 @@ function renderHistory() {
 }
 
 // ============================================================
+//  LATE NIGHT BANNER  (visible 20:00–04:00 local time)
+// ============================================================
+function checkLateBanner() {
+  const h   = new Date().getHours();
+  const show = h >= 20 || h < 4;
+  const el  = document.getElementById('lateBanner');
+  el.classList.toggle('hidden', !show);
+}
+
+// ============================================================
 //  RENDER ALL
 // ============================================================
 function render() {
+  updateActivePeriodBanner();
+  updateDatePickerConstraints();
   renderCalories();
   renderWeight();
   renderWeightChart();
   renderCalChart();
+}
+function updateActivePeriodBanner() {
+  const bar = document.getElementById('activePeriodBar');
+  const p   = getActivePeriod();
+  if (p) {
+    bar.classList.remove('hidden');
+    const endStr = p.end ? fmtDate(p.end) : 'ongoing';
+    document.getElementById('apbText').innerHTML =
+      `Viewing <b>${p.name}</b> &nbsp;${fmtDate(p.start)} – ${endStr}`;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+function updateDatePickerConstraints() {
+  const dp = document.getElementById('datePicker');
+  const p  = getActivePeriod();
+  if (p) {
+    dp.min = p.start;
+    dp.max = p.end || todayStr();
+    // Clamp current value
+    if (dp.value < p.start) dp.value = p.start;
+    if (dp.max && dp.value > dp.max) dp.value = dp.max;
+  } else {
+    dp.min = '';
+    dp.max = todayStr();
+  }
+}
+function clearViewingPeriod() {
+  activePeriodId = null;
+  localStorage.removeItem('wt_active_period');
+  const dp = document.getElementById('datePicker');
+  dp.min = '';
+  dp.max = todayStr();
+  render();
+  if (document.getElementById('panel-history').classList.contains('active')) renderHistory();
 }
 
 // ============================================================
