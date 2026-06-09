@@ -1401,7 +1401,16 @@ function renderWeightChart() {
   wrap.style.display='block'; noData.style.display='none';
   const ctx = document.getElementById('weightChart').getContext('2d');
   if (wChart) wChart.destroy();
-  // Build options directly (no JSON clone — that strips functions)
+
+  // Scale down dots and border as data gets denser
+  const n           = entries.length;
+  const pointRadius = n > 120 ? 0 : n > 60 ? 1.5 : n > 30 ? 2.5 : 4;
+  const hoverRadius = n > 120 ? 4 : n > 60 ? 5  : n > 30 ? 6   : 7;
+  const borderWidth = n > 60  ? 1.5 : 2;
+  const tension     = n > 60  ? 0.4 : 0.3;
+  // Above 120 points hide dots entirely — line only; click still works via hitRadius
+  const hitRadius   = n > 120 ? 8 : 0;
+
   wChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1411,8 +1420,8 @@ function renderWeightChart() {
         borderColor: '#78dc8c',
         backgroundColor: 'rgba(120,220,140,0.08)',
         pointBackgroundColor: '#78dc8c',
-        pointRadius: 4, pointHoverRadius: 7,
-        borderWidth: 2, tension: 0.3, fill: true,
+        pointRadius, pointHoverRadius: hoverRadius, pointHitRadius: hitRadius,
+        borderWidth, tension, fill: true,
       }]
     },
     options: {
