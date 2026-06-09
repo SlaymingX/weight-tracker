@@ -2188,61 +2188,32 @@ function exportPeriodXlsx(periodId) {
   const p = (db.periods || []).find(x => x.id === periodId);
   if (!p) return;
 
-  const wb = XLSX.utils.book_new();
+  const wb      = XLSX.utils.book_new();
+  const endDate = p.end || todayStr();
 
-  // ── Sheet 1: Summary ──────────────────────────────────────
-  const endDate   = p.end || todayStr();
-  const days      = Math.round((new Date(endDate) - new Date(p.start)) / 86400000);
-  const wEntries  = Object.entries(db.weights)
-    .filter(([d]) => d >= p.start && (!p.end || d <= p.end))
-    .sort(([a],[b]) => a.localeCompare(b));
-  const startW    = p.startW || (wEntries.length ? wEntries[0][1] : '');
-  const endW      = p.endW   || (wEntries.length ? wEntries[wEntries.length-1][1] : '');
-  const lost      = (startW && endW) ? parseFloat((startW - endW).toFixed(2)) : '';
-  const rate      = (lost !== '' && days > 0) ? parseFloat((lost / days).toFixed(4)) : '';
+  // Build a complete list of every day in the period
+  const rows = [['Date', 'Weight (kg)', 'Calories (kcal)', 'Note']];
 
-  const summaryData = [
-    ['Period Name', p.name],
-    ['Status',      p.current ? 'Current' : p.done ? 'Done' : 'Active'],
-    ['Start Date',  p.start],
-    ['End Date',    p.end || 'Ongoing'],
-    ['Days',        days],
-    ['Start Weight (kg)', startW],
-    ['End Weight (kg)',   endW],
-    ['Total Lost (kg)',   lost],
-    ['Avg Per Day (kg)',  rate],
-    [],
-    ['Exported from FitFriend on', new Date().toLocaleDateString()],
-  ];
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-  wsSummary['!cols'] = [{ wch: 24 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+  const cursor = new Date(p.start + 'T12:00:00');
+  const last   = new Date(endDate   + 'T12:00:00');
 
-  // ── Sheet 2: Weight Log ───────────────────────────────────
-  const weightRows = [['Date', 'Weight (kg)', 'Note']];
-  wEntries.forEach(([d, w]) => {
-    const note = (db.notes && db.notes[d]) ? db.notes[d] : '';
-    weightRows.push([d, parseFloat(w), note]);
-  });
-  const wsWeight = XLSX.utils.aoa_to_sheet(weightRows);
-  wsWeight['!cols'] = [{ wch: 13 }, { wch: 14 }, { wch: 40 }];
-  XLSX.utils.book_append_sheet(wb, wsWeight, 'Weight Log');
+  while (cursor <= last) {
+    const d     = cursor.getFullYear() + '-'
+                + String(cursor.getMonth()+1).padStart(2,'0') + '-'
+                + String(cursor.getDate()).padStart(2,'0');
+    const w     = db.weights[d] != null ? parseFloat(db.weights[d]) : '';
+    const cals  = db.calories[d]
+                ? db.calories[d].reduce((s, e) => s + e.amount, 0)
+                : '';
+    const note  = (db.notes && db.notes[d]) ? db.notes[d] : '';
+    rows.push([d, w, cals, note]);
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
-  // ── Sheet 3: Calories ─────────────────────────────────────
-  const calRows = [['Date', 'Time', 'Food / Label', 'Calories (kcal)']];
-  Object.entries(db.calories)
-    .filter(([d]) => d >= p.start && (!p.end || d <= p.end))
-    .sort(([a],[b]) => a.localeCompare(b))
-    .forEach(([d, entries]) => {
-      entries.forEach(e => {
-        calRows.push([d, e.time || '', e.label || '', e.amount]);
-      });
-    });
-  const wsCal = XLSX.utils.aoa_to_sheet(calRows);
-  wsCal['!cols'] = [{ wch: 13 }, { wch: 8 }, { wch: 30 }, { wch: 16 }];
-  XLSX.utils.book_append_sheet(wb, wsCal, 'Calories');
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 13 }, { wch: 13 }, { wch: 16 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, ws, p.name.slice(0, 31));
 
-  // ── Download ──────────────────────────────────────────────
   const safeName = p.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
   XLSX.writeFile(wb, `FitFriend_${safeName}_${p.start}.xlsx`);
   flash('Exported ✓');
