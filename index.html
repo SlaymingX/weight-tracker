@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="FitFriend">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#080b10;min-height:100vh}
@@ -416,6 +417,18 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .hist-compare-chart{height:200px;padding:0 12px 12px}
 .hist-compare-empty{padding:24px;text-align:center;color:rgba(180,220,185,.22);font-size:12px}
 
+
+/* ---- IMPORT / EXPORT ---- */
+.btn-pact.export{border-color:rgba(100,180,240,.25);color:rgba(100,180,240,.6)}
+.btn-pact.export:hover{background:rgba(100,180,240,.08);color:#6ab4f0}
+.pm-import-wrap{margin-bottom:14px;border:1px dashed rgba(120,220,140,.2);border-radius:10px;padding:12px;background:rgba(120,220,140,.02)}
+.pm-import-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:8px;display:block}
+.pm-import-row{display:flex;align-items:center;gap:10px}
+.pm-import-btn{background:rgba(100,180,240,.08);border:1px solid rgba(100,180,240,.25);color:#6ab4f0;border-radius:8px;padding:9px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;white-space:nowrap}
+.pm-import-btn:hover{background:rgba(100,180,240,.15)}
+.pm-import-info{font-size:10px;color:rgba(180,220,185,.3);line-height:1.5}
+.pm-import-status{font-size:11px;color:#78dc8c;margin-top:6px;display:none}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -424,6 +437,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <body>
 
 <div id="flash"></div>
+<input type="file" id="xlsxImportInput" accept=".xlsx" style="display:none" onchange="handleXlsxImport(event)"/>
 
 <!-- ADD CATEGORY MODAL -->
 <div class="modal-overlay" id="catModal">
@@ -617,6 +631,14 @@ input::placeholder{color:rgba(180,220,185,.3)}
         <label>End weight (kg)</label>
         <input type="number" id="pmEndW" placeholder="e.g. 79.5" step="0.1" min="20" max="300"/>
       </div>
+    </div>
+    <div class="pm-import-wrap" id="pmImportWrap">
+      <span class="pm-import-label">📥 Import data from Excel</span>
+      <div class="pm-import-row">
+        <button class="pm-import-btn" onclick="triggerXlsxImport()">Choose .xlsx file</button>
+        <span class="pm-import-info">Import weights &amp; calories<br>from a FitFriend export</span>
+      </div>
+      <div class="pm-import-status" id="pmImportStatus"></div>
     </div>
     <div class="pm-btns">
       <button class="btn" style="background:none;border:1px solid rgba(180,220,185,.15);color:rgba(180,220,185,.5)" onclick="closePeriodModal()">Cancel</button>
@@ -2098,6 +2120,7 @@ function renderHistory() {
           <button class="btn-pact ${isViewing ? 'viewing-on primary' : ''}" onclick="setViewingPeriod(${p.id})">
             ${isViewing ? '👁 Viewing' : '👁 View'}
           </button>
+          <button class="btn-pact export" onclick="exportPeriodXlsx(${p.id})">⬇ Export</button>
           <button class="btn-pact" onclick="openPeriodModal(${p.id})">✎ Edit</button>
           ${p.current ? `<button class="btn-pact" onclick="finishPeriod(${p.id})">✓ Finish</button>` : ''}
           <button class="btn-pact danger" onclick="deletePeriod(${p.id})">✕ Delete</button>
@@ -2155,6 +2178,172 @@ function renderHistory() {
   });
 }
 
+
+
+// ============================================================
+//  XLSX EXPORT / IMPORT
+// ============================================================
+
+function exportPeriodXlsx(periodId) {
+  const p = (db.periods || []).find(x => x.id === periodId);
+  if (!p) return;
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Summary ──────────────────────────────────────
+  const endDate   = p.end || todayStr();
+  const days      = Math.round((new Date(endDate) - new Date(p.start)) / 86400000);
+  const wEntries  = Object.entries(db.weights)
+    .filter(([d]) => d >= p.start && (!p.end || d <= p.end))
+    .sort(([a],[b]) => a.localeCompare(b));
+  const startW    = p.startW || (wEntries.length ? wEntries[0][1] : '');
+  const endW      = p.endW   || (wEntries.length ? wEntries[wEntries.length-1][1] : '');
+  const lost      = (startW && endW) ? parseFloat((startW - endW).toFixed(2)) : '';
+  const rate      = (lost !== '' && days > 0) ? parseFloat((lost / days).toFixed(4)) : '';
+
+  const summaryData = [
+    ['Period Name', p.name],
+    ['Status',      p.current ? 'Current' : p.done ? 'Done' : 'Active'],
+    ['Start Date',  p.start],
+    ['End Date',    p.end || 'Ongoing'],
+    ['Days',        days],
+    ['Start Weight (kg)', startW],
+    ['End Weight (kg)',   endW],
+    ['Total Lost (kg)',   lost],
+    ['Avg Per Day (kg)',  rate],
+    [],
+    ['Exported from FitFriend on', new Date().toLocaleDateString()],
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{ wch: 24 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // ── Sheet 2: Weight Log ───────────────────────────────────
+  const weightRows = [['Date', 'Weight (kg)', 'Note']];
+  wEntries.forEach(([d, w]) => {
+    const note = (db.notes && db.notes[d]) ? db.notes[d] : '';
+    weightRows.push([d, parseFloat(w), note]);
+  });
+  const wsWeight = XLSX.utils.aoa_to_sheet(weightRows);
+  wsWeight['!cols'] = [{ wch: 13 }, { wch: 14 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsWeight, 'Weight Log');
+
+  // ── Sheet 3: Calories ─────────────────────────────────────
+  const calRows = [['Date', 'Time', 'Food / Label', 'Calories (kcal)']];
+  Object.entries(db.calories)
+    .filter(([d]) => d >= p.start && (!p.end || d <= p.end))
+    .sort(([a],[b]) => a.localeCompare(b))
+    .forEach(([d, entries]) => {
+      entries.forEach(e => {
+        calRows.push([d, e.time || '', e.label || '', e.amount]);
+      });
+    });
+  const wsCal = XLSX.utils.aoa_to_sheet(calRows);
+  wsCal['!cols'] = [{ wch: 13 }, { wch: 8 }, { wch: 30 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, wsCal, 'Calories');
+
+  // ── Download ──────────────────────────────────────────────
+  const safeName = p.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  XLSX.writeFile(wb, `FitFriend_${safeName}_${p.start}.xlsx`);
+  flash('Exported ✓');
+}
+
+// ── Import ─────────────────────────────────────────────────
+let importTargetPeriodId = null; // set when modal is open
+
+function triggerXlsxImport() {
+  importTargetPeriodId = editingPeriodId; // null = new period being created
+  document.getElementById('xlsxImportInput').value = '';
+  document.getElementById('xlsxImportInput').click();
+}
+
+function handleXlsxImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('pmImportStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent   = 'Reading file…';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+
+      let weightCount = 0, calCount = 0, noteCount = 0;
+
+      // ── Import Weight Log sheet ─────────────────────────────
+      if (wb.SheetNames.includes('Weight Log')) {
+        const ws   = wb.Sheets['Weight Log'];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+        // rows[0] = header
+        for (let i = 1; i < rows.length; i++) {
+          const [date, weight, note] = rows[i];
+          if (!date || !weight) continue;
+          const dateStr = String(date).trim();
+          const wVal    = parseFloat(String(weight).replace(',','.'));
+          if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/) || isNaN(wVal)) continue;
+          db.weights[dateStr] = wVal;
+          weightCount++;
+          if (note && String(note).trim()) {
+            if (!db.notes) db.notes = {};
+            db.notes[dateStr] = String(note).trim();
+            noteCount++;
+          }
+        }
+      }
+
+      // ── Import Calories sheet ───────────────────────────────
+      if (wb.SheetNames.includes('Calories')) {
+        const ws   = wb.Sheets['Calories'];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+        for (let i = 1; i < rows.length; i++) {
+          const [date, time, label, kcal] = rows[i];
+          if (!date || !kcal) continue;
+          const dateStr = String(date).trim();
+          const kcalVal = parseFloat(String(kcal).replace(',','.'));
+          if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/) || isNaN(kcalVal)) continue;
+          if (!db.calories[dateStr]) db.calories[dateStr] = [];
+          db.calories[dateStr].push({
+            id:     Date.now() + Math.random(),
+            time:   time   ? String(time).trim()  : '',
+            label:  label  ? String(label).trim() : '',
+            amount: Math.round(kcalVal),
+          });
+          calCount++;
+        }
+      }
+
+      // ── Auto-fill period dates/weights from Summary sheet ──
+      if (wb.SheetNames.includes('Summary')) {
+        const ws   = wb.Sheets['Summary'];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+        const map  = {};
+        rows.forEach(([k, v]) => { if (k) map[String(k).trim()] = v; });
+        if (map['Start Date'] && !document.getElementById('pmStart').value)
+          document.getElementById('pmStart').value = map['Start Date'];
+        if (map['End Date'] && map['End Date'] !== 'Ongoing' && !document.getElementById('pmEnd').value)
+          document.getElementById('pmEnd').value = map['End Date'];
+        if (map['Start Weight (kg)'] && !document.getElementById('pmStartW').value)
+          document.getElementById('pmStartW').value = map['Start Weight (kg)'];
+        if (map['End Weight (kg)'] && !document.getElementById('pmEndW').value)
+          document.getElementById('pmEndW').value = map['End Weight (kg)'];
+        if (map['Period Name'] && !document.getElementById('pmName').value)
+          document.getElementById('pmName').value = map['Period Name'];
+      }
+
+      save();
+      statusEl.textContent = `✓ Imported ${weightCount} weights, ${calCount} calories${noteCount ? ', ' + noteCount + ' notes' : ''}`;
+      statusEl.style.color = '#78dc8c';
+
+    } catch(err) {
+      statusEl.textContent = '✕ Import failed: ' + err.message;
+      statusEl.style.color = '#e07070';
+      console.error('[import]', err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 // ============================================================
 //  RENDER ALL
