@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="FitFriend">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#080b10;min-height:100vh}
@@ -408,13 +409,57 @@ input::placeholder{color:rgba(180,220,185,.3)}
   margin:0 16px 10px;background:rgba(255,255,255,.03);
   border:1px solid rgba(120,220,140,.1);border-radius:16px;overflow:hidden;
 }
-.hist-compare-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px}
+.hist-compare-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 8px}
 .hist-compare-title{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;opacity:.8}
 .hist-compare-legend{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px}
 .hcl-item{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(180,220,185,.55)}
 .hcl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .hist-compare-chart{height:200px;padding:0 12px 12px}
 .hist-compare-empty{padding:24px;text-align:center;color:rgba(180,220,185,.22);font-size:12px}
+
+
+/* ---- IMPORT / EXPORT ---- */
+.btn-pact.export{border-color:rgba(100,180,240,.25);color:rgba(100,180,240,.6)}
+.btn-pact.export:hover{background:rgba(100,180,240,.08);color:#6ab4f0}
+.pm-import-wrap{margin-bottom:14px;border:1px dashed rgba(120,220,140,.2);border-radius:10px;padding:12px;background:rgba(120,220,140,.02)}
+.pm-import-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:8px;display:block}
+.pm-import-row{display:flex;align-items:center;gap:10px}
+.pm-import-btn{background:rgba(100,180,240,.08);border:1px solid rgba(100,180,240,.25);color:#6ab4f0;border-radius:8px;padding:9px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;white-space:nowrap}
+.pm-import-btn:hover{background:rgba(100,180,240,.15)}
+.pm-import-info{font-size:10px;color:rgba(180,220,185,.3);line-height:1.5}
+.pm-import-status{font-size:11px;color:#78dc8c;margin-top:6px;display:none}
+
+
+/* ---- COMPARE SELECTOR ---- */
+.hist-compare-selector{padding:10px 16px 6px;display:flex;flex-wrap:wrap;gap:6px}
+.cmp-chip{
+  display:flex;align-items:center;gap:6px;padding:5px 10px;
+  border-radius:20px;border:1px solid rgba(120,220,140,.18);
+  background:rgba(120,220,140,.04);cursor:pointer;user-select:none;
+  font-family:'DM Mono',monospace;font-size:11px;color:rgba(180,220,185,.5);
+  transition:all .15s;
+}
+.cmp-chip:hover{border-color:rgba(120,220,140,.35);color:rgba(180,220,185,.8)}
+.cmp-chip.on{background:rgba(120,220,140,.12);color:#d4edd8;border-color:rgba(120,220,140,.4)}
+.cmp-chip-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;opacity:.5}
+.cmp-chip.on .cmp-chip-dot{opacity:1}
+.cmp-no-data{padding:20px;text-align:center;color:rgba(180,220,185,.2);font-size:11px}
+
+/* ---- MERGE MODAL ---- */
+.merge-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:20px}
+.merge-modal-overlay.open{display:flex}
+.merge-modal{background:#0d1a10;border:1px solid rgba(120,220,140,.22);border-radius:16px;padding:22px;width:100%;max-width:380px}
+.merge-modal h3{font-family:'Syne',sans-serif;font-size:16px;color:#78dc8c;margin-bottom:6px}
+.merge-modal p{font-size:11px;color:rgba(180,220,185,.4);margin-bottom:14px;line-height:1.5}
+.merge-period-pick{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.merge-pick-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:4px}
+.merge-pick-select{width:100%;background:rgba(120,220,140,.06);border:1px solid rgba(120,220,140,.22);border-radius:9px;color:#d4edd8;padding:10px 12px;font-family:'DM Mono',monospace;font-size:13px;outline:none}
+.merge-pick-select:focus{border-color:#78dc8c}
+.merge-name-field label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.45);margin-bottom:5px}
+.merge-name-field input{width:100%;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.merge-preview{background:rgba(120,220,140,.04);border:1px solid rgba(120,220,140,.1);border-radius:8px;padding:10px 12px;font-size:11px;color:rgba(180,220,185,.5);margin-bottom:14px;min-height:36px}
+.merge-btns{display:flex;gap:10px}
+.merge-btns .btn{flex:1;padding:12px}
 
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
@@ -424,6 +469,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <body>
 
 <div id="flash"></div>
+<input type="file" id="xlsxImportInput" accept=".xlsx" style="display:none" onchange="handleXlsxImport(event)"/>
 
 <!-- ADD CATEGORY MODAL -->
 <div class="modal-overlay" id="catModal">
@@ -618,9 +664,48 @@ input::placeholder{color:rgba(180,220,185,.3)}
         <input type="number" id="pmEndW" placeholder="e.g. 79.5" step="0.1" min="20" max="300"/>
       </div>
     </div>
+    <div class="pm-import-wrap" id="pmImportWrap">
+      <span class="pm-import-label">📥 Import data from Excel</span>
+      <div class="pm-import-row">
+        <button class="pm-import-btn" onclick="triggerXlsxImport()">Choose .xlsx file</button>
+        <span class="pm-import-info">Import weights &amp; calories<br>from a FitFriend export</span>
+      </div>
+      <div class="pm-import-status" id="pmImportStatus"></div>
+    </div>
     <div class="pm-btns">
       <button class="btn" style="background:none;border:1px solid rgba(180,220,185,.15);color:rgba(180,220,185,.5)" onclick="closePeriodModal()">Cancel</button>
       <button class="btn btn-green" onclick="savePeriodModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MERGE MODAL -->
+<div class="merge-modal-overlay" id="mergeModal">
+  <div class="merge-modal">
+    <h3>Merge Periods</h3>
+    <p>Combines weight, calorie and note data from both periods. The original periods are kept — a new merged period is created.</p>
+    <div class="merge-period-pick">
+      <div>
+        <div class="merge-pick-label">First period</div>
+        <select class="merge-pick-select" id="mergePickA" onchange="updateMergePreview()">
+          <option value="">— select —</option>
+        </select>
+      </div>
+      <div>
+        <div class="merge-pick-label">Second period</div>
+        <select class="merge-pick-select" id="mergePickB" onchange="updateMergePreview()">
+          <option value="">— select —</option>
+        </select>
+      </div>
+    </div>
+    <div class="merge-name-field">
+      <label>Merged period name</label>
+      <input type="text" id="mergeNameInput" placeholder="e.g. Full 2025 Cut" maxlength="50" autocomplete="off"/>
+    </div>
+    <div class="merge-preview" id="mergePreview">Select two periods above to preview.</div>
+    <div class="merge-btns">
+      <button class="btn" style="background:none;border:1px solid rgba(180,220,185,.15);color:rgba(180,220,185,.5)" onclick="closeMergeModal()">Cancel</button>
+      <button class="btn btn-green" onclick="confirmMerge()">Merge</button>
     </div>
   </div>
 </div>
@@ -631,8 +716,10 @@ input::placeholder{color:rgba(180,220,185,.3)}
   <!-- COMPARISON CHART -->
   <div class="hist-compare-wrap" id="histCompareWrap">
     <div class="hist-compare-head">
-      <span class="hist-compare-title">All Periods — Compare</span>
+      <span class="hist-compare-title">Compare Periods</span>
+      <button class="btn-add-cat" style="font-size:10px;padding:5px 11px" onclick="openMergeModal()">⊕ Merge</button>
     </div>
+    <div class="hist-compare-selector" id="cmpSelector"></div>
     <div class="hist-compare-legend" id="histCompareLegend"></div>
     <div class="hist-compare-chart"><canvas id="histCompareChart"></canvas></div>
   </div>
@@ -1314,7 +1401,16 @@ function renderWeightChart() {
   wrap.style.display='block'; noData.style.display='none';
   const ctx = document.getElementById('weightChart').getContext('2d');
   if (wChart) wChart.destroy();
-  // Build options directly (no JSON clone — that strips functions)
+
+  // Scale down dots and border as data gets denser
+  const n           = entries.length;
+  const pointRadius = n > 120 ? 0 : n > 60 ? 1.5 : n > 30 ? 2.5 : 4;
+  const hoverRadius = n > 120 ? 4 : n > 60 ? 5  : n > 30 ? 6   : 7;
+  const borderWidth = n > 60  ? 1.5 : 2;
+  const tension     = n > 60  ? 0.4 : 0.3;
+  // Above 120 points hide dots entirely — line only; click still works via hitRadius
+  const hitRadius   = n > 120 ? 8 : 0;
+
   wChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -1324,8 +1420,8 @@ function renderWeightChart() {
         borderColor: '#78dc8c',
         backgroundColor: 'rgba(120,220,140,0.08)',
         pointBackgroundColor: '#78dc8c',
-        pointRadius: 4, pointHoverRadius: 7,
-        borderWidth: 2, tension: 0.3, fill: true,
+        pointRadius, pointHoverRadius: hoverRadius, pointHitRadius: hitRadius,
+        borderWidth, tension, fill: true,
       }]
     },
     options: {
@@ -1795,38 +1891,68 @@ const PERIOD_COLORS = [
   '#70d4d4','#f0a070','#a0d870','#f070b8','#90b0f0',
 ];
 let compareChart = null;
+let selectedCompareIds = new Set( // persist selection across renders
+  JSON.parse(localStorage.getItem('wt_compare_ids') || '[]')
+);
+
+function toggleCompareId(id) {
+  if (selectedCompareIds.has(id)) selectedCompareIds.delete(id);
+  else selectedCompareIds.add(id);
+  localStorage.setItem('wt_compare_ids', JSON.stringify([...selectedCompareIds]));
+  renderCompareChart();
+}
 
 function renderCompareChart() {
-  const wrap = document.getElementById('histCompareWrap');
+  const wrap   = document.getElementById('histCompareWrap');
   const legend = document.getElementById('histCompareLegend');
+  const selDiv = document.getElementById('cmpSelector');
 
-  // Only show when not viewing a specific period
   if (activePeriodId) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
 
-  const periods = (db.periods || []).filter(p => {
-    // Only periods that have at least 2 actual weight entries
-    const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p, d));
-    return entries.length >= 2;
+  // All eligible periods (at least 2 weight entries)
+  const allPeriods = (db.periods || []).filter(p => {
+    return Object.entries(db.weights).filter(([d]) => periodContainsDate(p, d)).length >= 2;
   });
+
+  // Auto-select all if nothing selected yet
+  if (selectedCompareIds.size === 0 && allPeriods.length) {
+    allPeriods.forEach(p => selectedCompareIds.add(p.id));
+    localStorage.setItem('wt_compare_ids', JSON.stringify([...selectedCompareIds]));
+  }
+
+  // Remove stale ids (deleted periods)
+  const validIds = new Set(allPeriods.map(p => p.id));
+  [...selectedCompareIds].forEach(id => { if (!validIds.has(id)) selectedCompareIds.delete(id); });
+
+  // Render chips
+  selDiv.innerHTML = allPeriods.map((p, i) => {
+    const color = PERIOD_COLORS[i % PERIOD_COLORS.length];
+    const on    = selectedCompareIds.has(p.id);
+    return `<div class="cmp-chip ${on ? 'on' : ''}" onclick="toggleCompareId(${p.id})">
+      <div class="cmp-chip-dot" style="background:${color}"></div>${p.name}
+    </div>`;
+  }).join('');
 
   if (compareChart) { compareChart.destroy(); compareChart = null; }
 
+  const periods = allPeriods.filter(p => selectedCompareIds.has(p.id));
+
   if (!periods.length) {
     legend.innerHTML = '';
-    document.querySelector('.hist-compare-chart').innerHTML =
-      '<div class="hist-compare-empty">Add weight entries to 2+ periods to see comparison</div>';
+    const cw = document.querySelector('.hist-compare-chart');
+    cw.innerHTML = '<div class="cmp-no-data">Select at least one period above</div>';
     return;
   }
-  // Restore canvas if it was replaced by the empty message
   const chartWrap = document.querySelector('.hist-compare-chart');
   if (!chartWrap.querySelector('canvas')) {
     chartWrap.innerHTML = '<canvas id="histCompareChart"></canvas>';
   }
 
-  // Build datasets — x axis = day offset from period start (day 0, 1, 2…)
   const datasets = periods.map((p, i) => {
-    const color = PERIOD_COLORS[i % PERIOD_COLORS.length];
+    // Assign color by global period index, not filtered index, for stable colors
+    const globalIdx = allPeriods.findIndex(x => x.id === p.id);
+    const color = PERIOD_COLORS[globalIdx % PERIOD_COLORS.length];
     const entries = Object.entries(db.weights)
       .filter(([d]) => periodContainsDate(p, d))
       .sort(([a],[b]) => a.localeCompare(b))
@@ -1834,29 +1960,19 @@ function renderCompareChart() {
         const dayOffset = Math.round((new Date(d) - new Date(p.start)) / 86400000);
         return { x: dayOffset, y: parseFloat(v), date: d };
       });
-
     return {
       label: p.name,
       data: entries,
       borderColor: color,
       backgroundColor: color + '18',
       pointBackgroundColor: color,
-      pointRadius: 4,
-      pointHoverRadius: 7,
-      borderWidth: 2,
-      tension: 0.3,
-      fill: false,
+      pointRadius: 4, pointHoverRadius: 7,
+      borderWidth: 2, tension: 0.3, fill: false,
       parsing: { xAxisKey: 'x', yAxisKey: 'y' },
-      // Store period id for click navigation
-      _periodId: p.id,
-      _periodStart: p.start,
     };
   });
 
-  // Legend
-  legend.innerHTML = datasets.map((ds, i) =>
-    `<div class="hcl-item"><div class="hcl-dot" style="background:${PERIOD_COLORS[i % PERIOD_COLORS.length]}"></div>${ds.label}</div>`
-  ).join('');
+  legend.innerHTML = '';  // chips replace the old legend
 
   const ctx = document.getElementById('histCompareChart').getContext('2d');
   compareChart = new Chart(ctx, {
@@ -1919,6 +2035,121 @@ function renderCompareChart() {
     }
   });
 }
+
+// ============================================================
+//  MERGE PERIODS
+// ============================================================
+function openMergeModal() {
+  const periods = db.periods || [];
+  const optionsHtml = periods.map(p =>
+    `<option value="${p.id}">${p.name} (${fmtDate(p.start)}${p.end ? ' → '+fmtDate(p.end) : ''})</option>`
+  ).join('');
+  document.getElementById('mergePickA').innerHTML = '<option value="">— select —</option>' + optionsHtml;
+  document.getElementById('mergePickB').innerHTML = '<option value="">— select —</option>' + optionsHtml;
+  document.getElementById('mergeNameInput').value = '';
+  document.getElementById('mergePreview').textContent = 'Select two periods above to preview.';
+  document.getElementById('mergeModal').classList.add('open');
+}
+function closeMergeModal() {
+  document.getElementById('mergeModal').classList.remove('open');
+}
+document.getElementById('mergeModal').addEventListener('mousedown', e => {
+  if (e.target === document.getElementById('mergeModal')) closeMergeModal();
+});
+
+function updateMergePreview() {
+  const idA = parseInt(document.getElementById('mergePickA').value);
+  const idB = parseInt(document.getElementById('mergePickB').value);
+  const prev = document.getElementById('mergePreview');
+  if (!idA || !idB) { prev.textContent = 'Select two periods above to preview.'; return; }
+  if (idA === idB)  { prev.textContent = '⚠ Select two different periods.'; return; }
+
+  const pA = (db.periods || []).find(p => p.id === idA);
+  const pB = (db.periods || []).find(p => p.id === idB);
+  if (!pA || !pB) return;
+
+  const start   = pA.start < pB.start ? pA.start : pB.start;
+  const endA    = pA.end || todayStr();
+  const endB    = pB.end || todayStr();
+  const end     = endA > endB ? endA : endB;
+  const days    = Math.round((new Date(end) - new Date(start)) / 86400000);
+  const wA      = Object.keys(db.weights).filter(d => periodContainsDate(pA, d)).length;
+  const wB      = Object.keys(db.weights).filter(d => periodContainsDate(pB, d)).length;
+  const overlap = Object.keys(db.weights).filter(d => periodContainsDate(pA,d) && periodContainsDate(pB,d)).length;
+
+  prev.innerHTML =
+    `${fmtDate(start)} → ${fmtDate(end)} &nbsp;·&nbsp; ${days} days<br>` +
+    `${wA + wB - overlap} weight entries (${overlap} overlapping dates — later period wins)<br>` +
+    `<span style="color:rgba(180,220,185,.35);font-size:10px">Original periods are kept unchanged</span>`;
+
+  // Auto-suggest name
+  if (!document.getElementById('mergeNameInput').value) {
+    document.getElementById('mergeNameInput').value = pA.name + ' + ' + pB.name;
+  }
+}
+
+function confirmMerge() {
+  const idA  = parseInt(document.getElementById('mergePickA').value);
+  const idB  = parseInt(document.getElementById('mergePickB').value);
+  const name = document.getElementById('mergeNameInput').value.trim();
+
+  if (!idA || !idB)  { flash('Select two periods', true); return; }
+  if (idA === idB)   { flash('Select two different periods', true); return; }
+  if (!name)         { flash('Enter a name for the merged period', true); return; }
+
+  const pA = (db.periods || []).find(p => p.id === idA);
+  const pB = (db.periods || []).find(p => p.id === idB);
+  if (!pA || !pB) return;
+
+  const start = pA.start < pB.start ? pA.start : pB.start;
+  const endA  = pA.end, endB = pB.end;
+  const end   = (!endA && !endB) ? null : ((endA||'9999') > (endB||'9999') ? endA : endB);
+
+  // Merge weight entries: iterate both, later period (by start date) wins on overlap
+  const [earlier, later] = pA.start <= pB.start ? [pA, pB] : [pB, pA];
+  const mergedWeights = {};
+  Object.entries(db.weights).forEach(([d, w]) => {
+    if (periodContainsDate(earlier, d)) mergedWeights[d] = w;
+  });
+  Object.entries(db.weights).forEach(([d, w]) => {
+    if (periodContainsDate(later, d)) mergedWeights[d] = w; // overwrite on overlap
+  });
+  // Write merged weights back
+  Object.entries(mergedWeights).forEach(([d, w]) => { db.weights[d] = w; });
+
+  // Merge calories: append (no dedup — both periods' entries kept per day)
+  Object.entries(db.calories).forEach(([d, entries]) => {
+    if (periodContainsDate(earlier, d) || periodContainsDate(later, d)) {
+      // already in db.calories — nothing to copy, it's the same object
+    }
+  });
+
+  // Merge notes: later period wins on overlap
+  if (db.notes) {
+    Object.entries(db.notes).forEach(([d, note]) => {
+      if (periodContainsDate(later, d)) db.notes[d] = note;
+    });
+  }
+
+  // Create merged period
+  const startW = earlier.startW || null;
+  const endW   = later.endW     || null;
+  const isCurrent = (!endA || !endB);
+  if (!db.periods) db.periods = [];
+  db.periods.push({
+    id: Date.now(), name,
+    start, end,
+    startW, endW,
+    current: isCurrent, done: !isCurrent,
+  });
+  db.periods.sort((a,b) => b.start.localeCompare(a.start));
+  save();
+  closeMergeModal();
+  renderHistory();
+  renderCompareChart();
+  flash(`Merged into "${name}" ✓`);
+}
+
 // ============================================================
 //  LATE NIGHT BANNER  (visible 20:00–04:00 local time)
 // ============================================================
@@ -2098,6 +2329,7 @@ function renderHistory() {
           <button class="btn-pact ${isViewing ? 'viewing-on primary' : ''}" onclick="setViewingPeriod(${p.id})">
             ${isViewing ? '👁 Viewing' : '👁 View'}
           </button>
+          <button class="btn-pact export" onclick="exportPeriodXlsx(${p.id})">⬇ Export</button>
           <button class="btn-pact" onclick="openPeriodModal(${p.id})">✎ Edit</button>
           ${p.current ? `<button class="btn-pact" onclick="finishPeriod(${p.id})">✓ Finish</button>` : ''}
           <button class="btn-pact danger" onclick="deletePeriod(${p.id})">✕ Delete</button>
@@ -2155,6 +2387,143 @@ function renderHistory() {
   });
 }
 
+
+
+// ============================================================
+//  XLSX EXPORT / IMPORT
+// ============================================================
+
+function exportPeriodXlsx(periodId) {
+  const p = (db.periods || []).find(x => x.id === periodId);
+  if (!p) return;
+
+  const wb      = XLSX.utils.book_new();
+  const endDate = p.end || todayStr();
+
+  // Build a complete list of every day in the period
+  const rows = [['Date', 'Weight (kg)', 'Calories (kcal)', 'Note']];
+
+  const cursor = new Date(p.start + 'T12:00:00');
+  const last   = new Date(endDate   + 'T12:00:00');
+
+  while (cursor <= last) {
+    const d     = cursor.getFullYear() + '-'
+                + String(cursor.getMonth()+1).padStart(2,'0') + '-'
+                + String(cursor.getDate()).padStart(2,'0');
+    const w     = db.weights[d] != null ? parseFloat(db.weights[d]) : '';
+    const cals  = db.calories[d]
+                ? db.calories[d].reduce((s, e) => s + e.amount, 0)
+                : '';
+    const note  = (db.notes && db.notes[d]) ? db.notes[d] : '';
+    rows.push([d, w, cals, note]);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 13 }, { wch: 13 }, { wch: 16 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, ws, p.name.slice(0, 31));
+
+  const safeName = p.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  XLSX.writeFile(wb, `FitFriend_${safeName}_${p.start}.xlsx`);
+  flash('Exported ✓');
+}
+
+// ── Import ─────────────────────────────────────────────────
+let importTargetPeriodId = null; // set when modal is open
+
+function triggerXlsxImport() {
+  importTargetPeriodId = editingPeriodId; // null = new period being created
+  document.getElementById('xlsxImportInput').value = '';
+  document.getElementById('xlsxImportInput').click();
+}
+
+function handleXlsxImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('pmImportStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent   = 'Reading file…';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+
+      let weightCount = 0, calCount = 0, noteCount = 0;
+
+      // ── Import Weight Log sheet ─────────────────────────────
+      if (wb.SheetNames.includes('Weight Log')) {
+        const ws   = wb.Sheets['Weight Log'];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+        // rows[0] = header
+        for (let i = 1; i < rows.length; i++) {
+          const [date, weight, note] = rows[i];
+          if (!date || !weight) continue;
+          const dateStr = String(date).trim();
+          const wVal    = parseFloat(String(weight).replace(',','.'));
+          if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/) || isNaN(wVal)) continue;
+          db.weights[dateStr] = wVal;
+          weightCount++;
+          if (note && String(note).trim()) {
+            if (!db.notes) db.notes = {};
+            db.notes[dateStr] = String(note).trim();
+            noteCount++;
+          }
+        }
+      }
+
+      // ── Import Calories sheet ───────────────────────────────
+      if (wb.SheetNames.includes('Calories')) {
+        const ws   = wb.Sheets['Calories'];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+        for (let i = 1; i < rows.length; i++) {
+          const [date, time, label, kcal] = rows[i];
+          if (!date || !kcal) continue;
+          const dateStr = String(date).trim();
+          const kcalVal = parseFloat(String(kcal).replace(',','.'));
+          if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/) || isNaN(kcalVal)) continue;
+          if (!db.calories[dateStr]) db.calories[dateStr] = [];
+          db.calories[dateStr].push({
+            id:     Date.now() + Math.random(),
+            time:   time   ? String(time).trim()  : '',
+            label:  label  ? String(label).trim() : '',
+            amount: Math.round(kcalVal),
+          });
+          calCount++;
+        }
+      }
+
+      // ── Auto-fill period dates/weights from Summary sheet ──
+      if (wb.SheetNames.includes('Summary')) {
+        const ws   = wb.Sheets['Summary'];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+        const map  = {};
+        rows.forEach(([k, v]) => { if (k) map[String(k).trim()] = v; });
+        if (map['Start Date'] && !document.getElementById('pmStart').value)
+          document.getElementById('pmStart').value = map['Start Date'];
+        if (map['End Date'] && map['End Date'] !== 'Ongoing' && !document.getElementById('pmEnd').value)
+          document.getElementById('pmEnd').value = map['End Date'];
+        if (map['Start Weight (kg)'] && !document.getElementById('pmStartW').value)
+          document.getElementById('pmStartW').value = map['Start Weight (kg)'];
+        if (map['End Weight (kg)'] && !document.getElementById('pmEndW').value)
+          document.getElementById('pmEndW').value = map['End Weight (kg)'];
+        if (map['Period Name'] && !document.getElementById('pmName').value)
+          document.getElementById('pmName').value = map['Period Name'];
+      }
+
+      save();
+      statusEl.textContent = `✓ Imported ${weightCount} weights, ${calCount} calories${noteCount ? ', ' + noteCount + ' notes' : ''}`;
+      statusEl.style.color = '#78dc8c';
+
+    } catch(err) {
+      statusEl.textContent = '✕ Import failed: ' + err.message;
+      statusEl.style.color = '#e07070';
+      console.error('[import]', err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 // ============================================================
 //  RENDER ALL
