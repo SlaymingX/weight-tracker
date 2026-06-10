@@ -820,27 +820,24 @@ function saveClientId() {
   startAuth();
 }
 
-// ── AUTH — token cached in sessionStorage, popup only when needed ────────────
+// ── AUTH — token cached in localStorage, popup only when token expired ───────
 //
-//  sessionStorage survives page reloads and tab navigations but is cleared
-//  when the browser tab is closed. This means:
-//  - Reload / navigate away and back → token reused, no popup
-//  - Close tab and reopen → token gone, one popup needed
-//  - Token expires mid-session → silent refresh attempted, popup if that fails
+//  localStorage persists across tab closes, browser restarts, and PWA kills.
+//  The account chooser appears only when the token has truly expired (~1 hour
+//  after last login). On return visits the stored token is reused directly.
 //
-//  The account chooser appears AT MOST once per browser session.
-//
-const TOKEN_SS_KEY  = 'wt_token';
-const EXPIRY_SS_KEY = 'wt_token_expiry';
+const TOKEN_LS_KEY  = 'wt_token';
+const EXPIRY_LS_KEY = 'wt_token_expiry';
 let authTimeoutTimer = null;
 
 function startAuth() {
   const clientId = getClientId();
   if (!clientId) return;
 
-  // Check sessionStorage for a still-valid token (survives reloads)
-  const cachedToken  = sessionStorage.getItem(TOKEN_SS_KEY);
-  const cachedExpiry = parseInt(sessionStorage.getItem(EXPIRY_SS_KEY) || '0');
+  // Check localStorage for a still-valid token
+  // localStorage persists across tab closes, app restarts, and PWA kills
+  const cachedToken  = localStorage.getItem(TOKEN_LS_KEY);
+  const cachedExpiry = parseInt(localStorage.getItem(EXPIRY_LS_KEY) || '0');
   const now          = Date.now();
 
   if (cachedToken && cachedExpiry > now + 60000) {
@@ -900,9 +897,9 @@ function onTokenSuccess(tr, hint) {
   const expiresIn = tr.expires_in || 3600;
   const expiryMs  = Date.now() + expiresIn * 1000;
 
-  // Cache token in sessionStorage — survives reloads, cleared on tab close
-  sessionStorage.setItem(TOKEN_SS_KEY,  accessToken);
-  sessionStorage.setItem(EXPIRY_SS_KEY, expiryMs);
+  // Cache token in localStorage — survives tab closes, PWA restarts, etc.
+  localStorage.setItem(TOKEN_LS_KEY,  accessToken);
+  localStorage.setItem(EXPIRY_LS_KEY, expiryMs);
 
   // Persist email for future hint
   const email = hint || localStorage.getItem(EMAIL_KEY);
@@ -939,8 +936,8 @@ function refreshToken() {
 
 // ── 401 mid-session handler ───────────────────────────────────
 function refreshTokenThenRetry() {
-  sessionStorage.removeItem(TOKEN_SS_KEY);
-  sessionStorage.removeItem(EXPIRY_SS_KEY);
+  localStorage.removeItem(TOKEN_LS_KEY);
+  localStorage.removeItem(EXPIRY_LS_KEY);
   accessToken = null;
   const email    = localStorage.getItem(EMAIL_KEY);
   const clientId = getClientId();
@@ -965,8 +962,8 @@ function signOut() {
   const tok = accessToken;
   accessToken = null;
   clearTimeout(tokenRefreshTimer);
-  sessionStorage.removeItem(TOKEN_SS_KEY);
-  sessionStorage.removeItem(EXPIRY_SS_KEY);
+  localStorage.removeItem(TOKEN_LS_KEY);
+  localStorage.removeItem(EXPIRY_LS_KEY);
   localStorage.removeItem(HINT_KEY);
   localStorage.removeItem(EMAIL_KEY);
   google.accounts.id.disableAutoSelect();
