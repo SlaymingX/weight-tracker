@@ -2629,6 +2629,20 @@ function clearViewingPeriod() {
   setInterval(checkLateBanner, 60000); // re-check every minute
   document.getElementById('weightInput').addEventListener('keydown', e => { if(e.key==='Enter') saveWeight(); });
 
+  // Auto-activate current period on first load if none is manually set
+  // Only apply if activePeriodId was not already saved (user cleared it intentionally)
+  if (!localStorage.getItem('wt_active_period')) {
+    const currentPeriod = (db.periods || []).find(p => p.current);
+    if (currentPeriod) {
+      activePeriodId = currentPeriod.id;
+      localStorage.setItem('wt_active_period', activePeriodId);
+      // Jump datepicker to today (within period bounds)
+      const dp = document.getElementById('datePicker');
+      const today = todayStr();
+      dp.value = today >= currentPeriod.start ? today : currentPeriod.start;
+    }
+  }
+
   const savedId = getClientId();
 
   if (savedId) {
