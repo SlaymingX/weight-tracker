@@ -16,8 +16,36 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#080b10;min-height:100vh}
-body{color:#d4edd8;font-family:'DM Mono',monospace;padding-bottom:80px}
+html{min-height:100vh;background:#080b10}
+body{
+  color:#d4edd8;font-family:'DM Mono',monospace;padding-bottom:80px;
+  min-height:100vh;
+  /* subtle noise-like background: layered radial gradients + grid */
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 10%, rgba(30,80,40,.55) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 80%, rgba(10,50,30,.5) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(20,60,35,.2) 0%, transparent 70%),
+    #080b10;
+}
+
+/* ── Desktop centering ── */
+.app-wrap{
+  width:100%;
+  max-width:760px;
+  margin:0 auto;
+  position:relative;
+}
+@media(min-width:800px){
+  body{padding-bottom:0}
+  .app-wrap{
+    min-height:100vh;
+    background:rgba(0,0,0,.18);
+    border-left:1px solid rgba(120,220,140,.06);
+    border-right:1px solid rgba(120,220,140,.06);
+    box-shadow:0 0 80px rgba(0,0,0,.6), 0 0 0 1px rgba(120,220,140,.04);
+    padding-bottom:60px;
+  }
+}
 
 /* ---- HEADER ---- */
 .header{padding:36px 24px 18px;border-bottom:1px solid rgba(120,220,140,.12);position:relative;overflow:hidden}
@@ -464,6 +492,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
+/* Modals sit over the app-wrap, not the full viewport */
+.modal-overlay,.period-modal-overlay,.merge-modal-overlay{backdrop-filter:blur(3px)}
 </style>
 </head>
 <body>
@@ -483,9 +513,10 @@ input::placeholder{color:rgba(180,220,185,.3)}
   </div>
 </div>
 
+<div class="app-wrap">
 <div class="header">
   <div class="header-tag">Body Metrics</div>
-  <h1>Weight<br><span>Tracker</span></h1>
+  <h1>FitFriend</h1>
 </div>
 
 <!-- TAB BAR -->
@@ -736,6 +767,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
   </div>
 
 </div><!-- /panel-history -->
+</div><!-- /app-wrap -->
 
 
 <!-- Google Identity Services -->
