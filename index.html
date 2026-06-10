@@ -821,54 +821,94 @@ function saveClientId() {
 }
 
 // ── Entry point on page load ─────────────────────────────────
-// Strategy: always use interactive login (account chooser popup).
-// prompt:'none' / One Tap silent flows are unreliable — they depend on
-// 3rd-party cookies which most browsers block, and on Google session
-// state which expires. The interactive popup is the only guaranteed path.
-// We use login_hint so Chrome pre-selects the right account automatically
-// (no manual click needed when there is only one matching account).
-let authTimeoutTimer = null;
+//
+//  Two-phase strategy:
+//  1. SILENT: try prompt:'none' — resolves instantly if Google still has
+//     a valid session for this client+scope. No UI shown at all.
+//  2. FALLBACK: if silent fails for any reason (expired session, revoked,
+//     cookies blocked), automatically trigger interactive popup after a
+//     short delay. User sees the chooser only when truly necessary.
+//
+//  Sign-out clears the email hint → next load goes straight to interactive.
+//
+let authTimeoutTimer  = null;
+let silentFallbackTimer = null;
 
 function startAuth() {
-  const clientId = getClientId();
+  const clientId   = getClientId();
   if (!clientId) return;
   const savedEmail = localStorage.getItem(EMAIL_KEY);
 
   setSyncStatus('busy', 'Connecting…');
+  clearTimeout(authTimeoutTimer);
+  clearTimeout(silentFallbackTimer);
 
-  // Safety timeout — if nothing happens in 8 s, show Connect button
+  if (savedEmail) {
+    // Phase 1 — try silent
+    trySilentAuth(savedEmail);
+  } else {
+    // No email stored — first use, go straight to interactive
+    requestDriveTokenInteractive(null);
+  }
+}
+
+// ── Phase 1: silent (prompt:'none') ──────────────────────────
+function trySilentAuth(email) {
+  const clientId = getClientId();
+  if (!clientId) return;
+
+  let silentResolved = false;
+
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope:     SCOPES,
+    hint:      email,
+    prompt:    'none',
+    callback:  (tr) => {
+      silentResolved = true;
+      clearTimeout(silentFallbackTimer);
+      clearTimeout(authTimeoutTimer);
+
+      if (tr.error) {
+        // Silent failed — go interactive immediately, no waiting
+        requestDriveTokenInteractive(email);
+        return;
+      }
+      onTokenSuccess(tr, email);
+    },
+  });
+
+  client.requestAccessToken({ prompt: 'none' });
+
+  // If GIS doesn't call the callback within 3 s (e.g. script still loading),
+  // fall through to interactive automatically
+  silentFallbackTimer = setTimeout(() => {
+    if (!silentResolved && !accessToken) {
+      requestDriveTokenInteractive(email);
+    }
+  }, 3000);
+}
+
+// ── Phase 2: interactive (shows account chooser if needed) ───
+function requestDriveTokenInteractive(hint) {
+  const clientId = getClientId();
+  if (!clientId) return;
+
+  // Hard timeout — if popup is blocked or user ignores it, show Connect btn
   clearTimeout(authTimeoutTimer);
   authTimeoutTimer = setTimeout(() => {
     if (!accessToken) {
-      setSyncStatus('err', 'Auto-connect timed out');
+      setSyncStatus('err', 'Sign in to sync with Drive');
       document.getElementById('syncBtn').textContent = 'Connect';
     }
-  }, 8000);
-
-  requestDriveToken(savedEmail || null);
-}
-
-// ── Called by One Tap when it fires (kept as bonus, not relied on) ────
-function onOneTapCredential(response) {
-  try {
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    localStorage.setItem(EMAIL_KEY, payload.email || payload.sub);
-  } catch(e) {}
-  // Don't try silent token here — just trigger normal interactive flow
-  requestDriveToken(localStorage.getItem(EMAIL_KEY));
-}
-
-// ── Request a Drive access token (always interactive, hint pre-selects account) ──
-function requestDriveToken(hint) {
-  const clientId = getClientId();
-  if (!clientId) return;
+  }, 30000); // 30 s — enough time to interact with popup
 
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope:     SCOPES,
     hint:      hint || undefined,
-    // No prompt override — let GIS decide; with a matching hint and existing
-    // consent it skips the chooser automatically. Without consent it shows popup.
+    // No prompt override — GIS shows chooser only if needed,
+    // skips it automatically when hint matches and consent exists
     callback:  (tr) => {
       clearTimeout(authTimeoutTimer);
       if (tr.error) {
@@ -876,38 +916,61 @@ function requestDriveToken(hint) {
         document.getElementById('syncBtn').textContent = 'Connect';
         return;
       }
-      // Store email for future hint
-      if (tr.authuser !== undefined && hint) {
-        localStorage.setItem(EMAIL_KEY, hint);
-      }
-      accessToken = tr.access_token;
-      // Proactive refresh 5 min before expiry
-      const expiresIn = (tr.expires_in || 3600) - 300;
-      clearTimeout(tokenRefreshTimer);
-      tokenRefreshTimer = setTimeout(() => refreshToken(), expiresIn * 1000);
-      setSyncStatus('busy', 'Loading from Drive…');
-      loadFromDrive();
+      onTokenSuccess(tr, hint);
     },
   });
 
   client.requestAccessToken();
 }
 
+// ── Shared success handler ────────────────────────────────────
+function onTokenSuccess(tr, hint) {
+  accessToken = tr.access_token;
+  // Persist email for silent auth on next load
+  const email = hint || localStorage.getItem(EMAIL_KEY);
+  if (email) localStorage.setItem(EMAIL_KEY, email);
+  // Proactive refresh 5 min before expiry (~55 min from now)
+  const expiresIn = (tr.expires_in || 3600) - 300;
+  clearTimeout(tokenRefreshTimer);
+  tokenRefreshTimer = setTimeout(() => refreshToken(), expiresIn * 1000);
+  setSyncStatus('busy', 'Loading from Drive…');
+  loadFromDrive();
+}
+
+// ── Called by One Tap if it fires (bonus path) ───────────────
+function onOneTapCredential(response) {
+  try {
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const email   = payload.email || payload.sub;
+    localStorage.setItem(EMAIL_KEY, email);
+    // One Tap gave us identity — try silent Drive token
+    trySilentAuth(email);
+  } catch(e) {
+    requestDriveTokenInteractive(null);
+  }
+}
+
+// Alias kept for handleSyncBtn
+function requestDriveToken(hint) {
+  requestDriveTokenInteractive(hint);
+}
+
 // ── Proactive token refresh before expiry ────────────────────
 function refreshToken() {
-  // Re-use same interactive flow; with existing consent + hint it's instant
   const email = localStorage.getItem(EMAIL_KEY);
-  requestDriveToken(email || null);
+  // Try silent first — usually works since we just had a valid token
+  if (email) trySilentAuth(email);
+  else requestDriveTokenInteractive(null);
 }
 
 // ── Called when a 401 is received mid-session ────────────────
 function refreshTokenThenRetry() {
-  const email = localStorage.getItem(EMAIL_KEY);
+  const email    = localStorage.getItem(EMAIL_KEY);
   const clientId = getClientId();
   if (!clientId) return;
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId, scope: SCOPES,
-    hint: email || undefined,
+    hint: email || undefined, prompt: 'none',
     callback: (tr) => {
       if (!tr.error) {
         accessToken = tr.access_token;
@@ -916,12 +979,13 @@ function refreshTokenThenRetry() {
         tokenRefreshTimer = setTimeout(() => refreshToken(), expiresIn * 1000);
         saveToDrive();
       } else {
+        // Silent refresh failed — ask user to reconnect
         setSyncStatus('err', 'Session expired — tap Connect');
         document.getElementById('syncBtn').textContent = 'Connect';
       }
     },
   });
-  client.requestAccessToken();
+  client.requestAccessToken({ prompt: 'none' });
 }
 
 function signOut() {
