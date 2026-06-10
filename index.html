@@ -1027,6 +1027,7 @@ async function loadFromDrive() {
       if (!data.notes)   data.notes   = {};
       db = data;
       saveLocal();
+      autoActivateCurrentPeriod(); // must run after db is loaded from Drive
       render();
       setSyncStatus('ok', 'Synced with Drive', json.files[0].modifiedTime);
     } else {
@@ -2304,11 +2305,11 @@ function setViewingPeriod(id) {
   activePeriodId = (activePeriodId === id) ? null : id;
   if (activePeriodId) {
     localStorage.setItem('wt_active_period', activePeriodId);
-    // Jump datepicker to period start
     const p = getActivePeriod();
     if (p) {
       const dp = document.getElementById('datePicker');
-      dp.value = p.start;
+      // Jump to last day: end date if finished, otherwise today
+      dp.value = p.end ? p.end : todayStr();
     }
   } else {
     localStorage.removeItem('wt_active_period');
@@ -2570,6 +2571,19 @@ function handleXlsxImport(event) {
   reader.readAsArrayBuffer(file);
 }
 
+
+// ── Auto-activate current period if none manually chosen ─────
+function autoActivateCurrentPeriod() {
+  // Skip if user explicitly chose a period or cleared to all-data view
+  if (localStorage.getItem('wt_active_period')) return;
+  const currentPeriod = (db.periods || []).find(p => p.current);
+  if (!currentPeriod) return;
+  activePeriodId = currentPeriod.id;
+  localStorage.setItem('wt_active_period', activePeriodId);
+  const dp = document.getElementById('datePicker');
+  dp.value = currentPeriod.end ? currentPeriod.end : todayStr();
+}
+
 // ============================================================
 //  RENDER ALL
 // ============================================================
@@ -2629,19 +2643,7 @@ function clearViewingPeriod() {
   setInterval(checkLateBanner, 60000); // re-check every minute
   document.getElementById('weightInput').addEventListener('keydown', e => { if(e.key==='Enter') saveWeight(); });
 
-  // Auto-activate current period on first load if none is manually set
-  // Only apply if activePeriodId was not already saved (user cleared it intentionally)
-  if (!localStorage.getItem('wt_active_period')) {
-    const currentPeriod = (db.periods || []).find(p => p.current);
-    if (currentPeriod) {
-      activePeriodId = currentPeriod.id;
-      localStorage.setItem('wt_active_period', activePeriodId);
-      // Jump datepicker to today (within period bounds)
-      const dp = document.getElementById('datePicker');
-      const today = todayStr();
-      dp.value = today >= currentPeriod.start ? today : currentPeriod.start;
-    }
-  }
+  autoActivateCurrentPeriod();
 
   const savedId = getClientId();
 
