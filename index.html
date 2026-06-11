@@ -17,6 +17,9 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{min-height:100vh;background:#080b10}
+@media(min-width:900px){
+  html{ font-size:118%; }
+}
 body{
   color:#d4edd8;font-family:'DM Mono',monospace;padding-bottom:80px;
   min-height:100vh;
@@ -1884,7 +1887,9 @@ function renderGoal() {
 
   if (goal) inp.value = goal;
 
+  const p = getActivePeriod();
   const entries  = Object.entries(db.weights)
+    .filter(([d]) => periodContainsDate(p, d))
     .sort(([a],[b]) => a.localeCompare(b))
     .map(([d,v]) => ({ d, v: parseFloat(v) }));
 
@@ -2016,7 +2021,6 @@ function renderCompareChart() {
   const legend = document.getElementById('histCompareLegend');
   const selDiv = document.getElementById('cmpSelector');
 
-  if (activePeriodId) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
 
   // All eligible periods (at least 2 weight entries)
