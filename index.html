@@ -925,38 +925,74 @@ function startAuth() {
     return;
   }
 
-  // No valid cached token — need to authenticate
+  // No valid cached token — try silently first, never popup automatically
   const savedEmail = localStorage.getItem(EMAIL_KEY);
   setSyncStatus('busy', 'Connecting…');
-  requestDriveTokenInteractive(savedEmail || null);
+  requestDriveTokenSilent(savedEmail || null);
 }
 
-// ── Token request — silent first, interactive fallback ───────
-function requestDriveTokenInteractive(hint, forceInteractive) {
+// ── Token request ────────────────────────────────────────────
+//
+//  Two modes:
+//  - silent (default): prompt:'none', no popup ever.
+//    If it fails, shows a quiet "Connect" button — user decides when to login.
+//  - interactive (only when user taps Connect or Sign in): shows popup.
+//
+//  This means the popup NEVER appears automatically — only on user action.
+//  The token is cached in localStorage for ~1 hour. When it expires the
+//  sync bar shows "Session expired" with a Connect button; user taps once.
+//
+function requestDriveTokenSilent(hint) {
   const clientId = getClientId();
   if (!clientId) return;
 
   clearTimeout(authTimeoutTimer);
 
-  // Try prompt:'none' silently first (no popup).
-  // Works reliably when app is published and user has an active Google session.
-  // Falls back to interactive automatically if it fails.
-  const tryPrompt = forceInteractive ? '' : 'none';
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope:     SCOPES,
+    hint:      hint || undefined,
+    prompt:    'none',
+    callback:  (tr) => {
+      clearTimeout(authTimeoutTimer);
+      if (tr.error) {
+        // Silent failed — do NOT open popup automatically.
+        // Just show a quiet connect button.
+        setSyncStatus('err', 'Tap Connect to sign in');
+        document.getElementById('syncBtn').textContent = 'Connect';
+        return;
+      }
+      onTokenSuccess(tr, hint);
+    },
+  });
+
+  // If GIS doesn't respond in 5 s (script not loaded yet, etc.) — show Connect
+  authTimeoutTimer = setTimeout(() => {
+    if (!accessToken) {
+      setSyncStatus('err', 'Tap Connect to sign in');
+      document.getElementById('syncBtn').textContent = 'Connect';
+    }
+  }, 5000);
+
+  client.requestAccessToken({ prompt: 'none' });
+}
+
+function requestDriveTokenInteractive(hint) {
+  const clientId = getClientId();
+  if (!clientId) return;
+
+  clearTimeout(authTimeoutTimer);
+  setSyncStatus('busy', 'Connecting…');
 
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope:     SCOPES,
     hint:      hint || undefined,
-    prompt:    tryPrompt,
+    // No prompt override — GIS shows chooser only if truly needed;
+    // with login_hint and existing consent it auto-selects silently
     callback:  (tr) => {
       clearTimeout(authTimeoutTimer);
       if (tr.error) {
-        if (!forceInteractive) {
-          // Silent failed — fall through to interactive with a short delay
-          // so the GIS iframe has time to clean up
-          setTimeout(() => requestDriveTokenInteractive(hint, true), 300);
-          return;
-        }
         setSyncStatus('err', 'Sign-in failed — tap Connect');
         document.getElementById('syncBtn').textContent = 'Connect';
         return;
@@ -965,22 +1001,14 @@ function requestDriveTokenInteractive(hint, forceInteractive) {
     },
   });
 
-  if (!forceInteractive) {
-    // Silent call — if GIS doesn't respond within 4 s, go interactive
-    authTimeoutTimer = setTimeout(() => {
-      if (!accessToken) requestDriveTokenInteractive(hint, true);
-    }, 4000);
-    client.requestAccessToken({ prompt: 'none' });
-  } else {
-    // Interactive — give user 30 s to pick account
-    authTimeoutTimer = setTimeout(() => {
-      if (!accessToken) {
-        setSyncStatus('err', 'Sign in to sync with Drive');
-        document.getElementById('syncBtn').textContent = 'Connect';
-      }
-    }, 30000);
-    client.requestAccessToken();
-  }
+  authTimeoutTimer = setTimeout(() => {
+    if (!accessToken) {
+      setSyncStatus('err', 'Sign in to sync with Drive');
+      document.getElementById('syncBtn').textContent = 'Connect';
+    }
+  }, 30000);
+
+  client.requestAccessToken();
 }
 
 // ── Shared success handler ────────────────────────────────────
@@ -1011,21 +1039,19 @@ function onOneTapCredential(response) {
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
     localStorage.setItem(EMAIL_KEY, payload.email || payload.sub);
   } catch(e) {}
-  requestDriveTokenInteractive(localStorage.getItem(EMAIL_KEY));
+  requestDriveTokenSilent(localStorage.getItem(EMAIL_KEY));
 }
 
-// Alias for handleSyncBtn
+// Alias (kept for compatibility)
 function requestDriveToken(hint) {
   requestDriveTokenInteractive(hint);
 }
 
-// ── Proactive token refresh (always silent) ──────────────────
+// ── Proactive token refresh (silent only, never popup) ───────
 function refreshToken() {
-  // Silent refresh — drop the cached token first so we don't use a stale one,
-  // then request silently. Falls back to interactive automatically if needed.
   localStorage.removeItem(TOKEN_LS_KEY);
   localStorage.removeItem(EXPIRY_LS_KEY);
-  requestDriveTokenInteractive(localStorage.getItem(EMAIL_KEY) || null, false);
+  requestDriveTokenSilent(localStorage.getItem(EMAIL_KEY) || null);
 }
 
 // ── 401 mid-session handler ───────────────────────────────────
@@ -1039,6 +1065,7 @@ function refreshTokenThenRetry() {
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId, scope: SCOPES,
     hint: email || undefined,
+    prompt: 'none',
     callback: (tr) => {
       if (!tr.error) {
         onTokenSuccess(tr, email);
@@ -1049,7 +1076,7 @@ function refreshTokenThenRetry() {
       }
     },
   });
-  client.requestAccessToken();
+  client.requestAccessToken({ prompt: 'none' });
 }
 
 function signOut() {
@@ -1070,7 +1097,7 @@ function signOut() {
 
 function handleSyncBtn() {
   if (accessToken) { setSyncStatus('busy', 'Syncing…'); saveToDrive(); }
-  else startAuth();
+  else requestDriveTokenInteractive(localStorage.getItem(EMAIL_KEY) || null);
 }
 
 // ============================================================
