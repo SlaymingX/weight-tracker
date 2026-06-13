@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FitFriend">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=Unbounded:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
@@ -606,6 +606,44 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .bmi-zone-l{font-size:8px;color:rgba(180,220,185,.25);letter-spacing:.3px}
 .bmi-setup-hint{font-size:10px;color:rgba(180,220,185,.25);text-align:center;padding:4px 0}
 
+
+/* ---- LANGUAGE ---- */
+:lang(uk) .ff-heading,
+:lang(uk) .header h1,
+:lang(uk) .header-tag,
+:lang(uk) .sec-label,
+:lang(uk) .hist-sec-label,
+:lang(uk) .settings-group-title,
+:lang(uk) .tab-btn,
+:lang(uk) .btn,
+:lang(uk) .stat-v,
+:lang(uk) .big-num,
+:lang(uk) .timer-value {
+  font-family: 'Unbounded', 'Syne', sans-serif;
+}
+:lang(uk) body,
+:lang(uk) input,
+:lang(uk) textarea,
+:lang(uk) select,
+:lang(uk) .sub-label,
+:lang(uk) .hint,
+:lang(uk) .entry,
+:lang(uk) .log-row,
+:lang(uk) .stat-l {
+  font-family: 'JetBrains Mono', 'DM Mono', monospace;
+}
+
+.lang-toggle{
+  display:flex;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.15);
+  border-radius:10px;overflow:hidden;
+}
+.lang-btn{
+  flex:1;padding:10px 18px;background:none;border:none;
+  font-family:'DM Mono',monospace;font-size:12px;letter-spacing:1px;
+  color:rgba(180,220,185,.45);cursor:pointer;transition:all .15s;
+}
+.lang-btn.active{background:rgba(120,220,140,.12);color:#78dc8c;font-weight:500}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -621,8 +659,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <!-- ADD CATEGORY MODAL -->
 <div class="modal-overlay" id="catModal">
   <div class="modal">
-    <h3>New Category</h3>
-    <input type="text" id="catNameInput" placeholder="e.g. KFC, Home Food, Café…" maxlength="40" autocomplete="off"/>
+    <h3 data-i18n="newCategory">New Category</h3>
+    <input type="text" id="catNameInput" placeholder="" data-i18n-ph="catPh" maxlength="40" autocomplete="off"/>
     <div class="modal-btns">
       <button class="btn" style="background:none;border:1px solid rgba(180,220,185,.15);color:rgba(180,220,185,.5)" onclick="closeCatModal()">Cancel</button>
       <button class="btn btn-green" onclick="confirmAddCat()">Add</button>
@@ -632,24 +670,24 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
 <div class="app-wrap">
 <div class="header">
-  <div class="header-tag">Body Metrics</div>
+  <div class="header-tag" data-i18n="headerTag">Body Metrics</div>
   <h1>FitFriend</h1>
 </div>
 
 <!-- TAB BAR -->
 <div class="tab-bar">
-  <button class="tab-btn active" id="tab-tracker" onclick="switchTab('tracker')">📊 Tracker</button>
-  <button class="tab-btn"        id="tab-food"    onclick="switchTab('food')">🍽 Food DB</button>
-  <button class="tab-btn"        id="tab-history" onclick="switchTab('history')">📉 History</button>
-  <button class="tab-btn"        id="tab-settings" onclick="switchTab('settings')">⚙ Settings</button>
+  <button class="tab-btn active" id="tab-tracker" onclick="switchTab('tracker')" data-i18n="tabTracker">📊 Tracker</button>
+  <button class="tab-btn"        id="tab-food"    onclick="switchTab('food')" data-i18n="tabFood">🍽 Food DB</button>
+  <button class="tab-btn"        id="tab-history" onclick="switchTab('history')" data-i18n="tabHistory">📉 History</button>
+  <button class="tab-btn"        id="tab-settings" onclick="switchTab('settings')" data-i18n="tabSettings">⚙ Settings</button>
 </div>
 
 <!-- SYNC STATUS BAR -->
 <div class="sync-bar" id="syncBar">
   <div class="sync-dot" id="syncDot"></div>
   <span class="sync-label" id="syncLabel">Not connected to Google Drive</span>
-  <button class="btn-sync" id="syncBtn" onclick="handleSyncBtn()">Connect</button>
-  <button class="btn-sync" id="signOutBtn" onclick="signOut()" style="display:none;border-color:rgba(220,80,80,.3);color:rgba(220,100,100,.7)">Sign out</button>
+  <button class="btn-sync" id="syncBtn" onclick="handleSyncBtn()" data-i18n="connect">Connect</button>
+  <button class="btn-sync" id="signOutBtn" onclick="signOut()" style="display:none;border-color:rgba(220,80,80,.3);color:rgba(220,100,100,.7)" data-i18n="signOut">Sign out</button>
 </div>
 
 <!-- SETUP PANEL -->
@@ -673,15 +711,15 @@ input::placeholder{color:rgba(180,220,185,.3)}
   <div class="active-period-bar hidden" id="activePeriodBar">
     <div class="apb-dot"></div>
     <span class="apb-text" id="apbText">Viewing period</span>
-    <button class="apb-clear" onclick="clearViewingPeriod()">✕ All data</button>
+    <button class="apb-clear" onclick="clearViewingPeriod()" data-i18n="allData">✕ All data</button>
   </div>
 
   <!-- LATE NIGHT BANNER -->
   <div class="late-banner hidden" id="lateBanner">
     <span class="late-banner-icon">🌙</span>
     <div class="late-banner-text">
-      <b>That's enough food for today.</b>
-      It's getting late — your body is winding down for the night.
+      <b data-i18n="lateTitle">That's enough food for today.</b>
+      <span data-i18n="lateSub">It's getting late — your body is winding down for the night.</span>
     </div>
   </div>
 
@@ -697,14 +735,14 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
     <!-- DATE -->
     <div class="section">
-      <div class="sec-label">Selected Date</div>
+      <div class="sec-label" data-i18n="selectedDate">Selected Date</div>
       <div class="date-nav">
         <button class="date-nav-btn" onclick="shiftDay(-1)" title="Previous day">&#8249;</button>
         <div class="date-nav-center">
           <input type="date" id="datePicker"/>
         </div>
         <button class="date-nav-btn" onclick="shiftDay(1)" title="Next day">&#8250;</button>
-        <button class="btn-ghost btn-today" onclick="setToday()">Today</button>
+        <button class="btn-ghost btn-today" onclick="setToday()" data-i18n="today">Today</button>
       </div>
     </div>
 
@@ -722,7 +760,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
     <div class="row">
       <!-- input wrapped for suggestions dropdown -->
       <div class="cal-input-wrap">
-        <input type="text" id="calInput" placeholder="Add kcal or type food name…"
+        <input type="text" id="calInput" placeholder="" data-i18n-ph="calPlaceholder"
           autocomplete="off"
           oninput="onCalInput(event)"
           onkeydown="onCalKeydown(event)"
@@ -730,7 +768,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
         />
         <div class="suggestions" id="sugBox"></div>
       </div>
-      <button class="btn btn-amber" onclick="addCalories()">+ Add</button>
+      <button class="btn btn-amber" onclick="addCalories()" data-i18n="add">+ Add</button>
     </div>
     <!-- calorie goal remaining -->
     <div class="cal-remaining hidden" id="calRemaining">
@@ -744,44 +782,44 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
     <ul class="entries" id="calEntries"></ul>
     <div class="divider" id="calChartWrap" style="display:none">
-      <div class="sub-label">Calories Chart</div>
+      <div class="sub-label" data-i18n="calChart">Calories Chart</div>
       <div class="chart-box"><canvas id="calChart"></canvas></div>
     </div>
   </div>
 
   <!-- WEIGHT -->
   <div class="section">
-    <button class="btn-edit" id="editBtn" onclick="toggleEdit()">✎ edit</button>
-    <div class="sec-label">Weight Log</div>
+    <button class="btn-edit" id="editBtn" onclick="toggleEdit()" data-i18n="edit">✎ edit</button>
+    <div class="sec-label" data-i18n="weightLog">Weight Log</div>
     <div class="big-row" id="weightDisplay" style="display:none">
       <span class="big-num" id="weightBig" style="color:#78dc8c"></span>
       <span class="big-unit" style="color:#6ba870">kg</span>
     </div>
     <div class="hint" id="weightHint"></div>
     <div class="row">
-      <input type="number" id="weightInput" placeholder="e.g. 75.4" step="0.1" min="20" max="300"/>
-      <button class="btn btn-green" onclick="saveWeight()">Save kg</button>
+      <input type="number" id="weightInput" placeholder="" data-i18n-ph="weightPh" step="0.1" min="20" max="300"/>
+      <button class="btn btn-green" onclick="saveWeight()" data-i18n="saveKg">Save kg</button>
     </div>
     <!-- NOTES BAR -->
     <div class="notes-wrap">
-      <div class="notes-label">Notes <span class="notes-saved-dot" id="notesSavedDot"></span></div>
-      <textarea class="notes-textarea" id="notesInput" placeholder="Add a note for this date…" oninput="onNoteInput()" rows="2"></textarea>
+      <div class="notes-label" data-i18n="notes">Notes <span class="notes-saved-dot" id="notesSavedDot"></span></div>
+      <textarea class="notes-textarea" id="notesInput" placeholder="" data-i18n-ph="notePh" oninput="onNoteInput()" rows="2"></textarea>
     </div>
     <div class="stats-grid" id="statsGrid" style="display:none">
-      <div class="stat"><div class="stat-l">Starting</div><div class="stat-v muted" id="sStart"></div></div>
-      <div class="stat"><div class="stat-l">Change</div><div class="stat-v" id="sChange"></div></div>
+      <div class="stat"><div class="stat-l" data-i18n="starting">Starting</div><div class="stat-v muted" id="sStart"></div></div>
+      <div class="stat"><div class="stat-l" data-i18n="change">Change</div><div class="stat-v" id="sChange"></div></div>
     </div>
     <!-- BMI STRIP -->
     <div class="bmi-wrap" id="bmiWrap" style="display:none">
       <div class="bmi-top">
-        <span class="bmi-title">BMI</span>
+        <span class="bmi-title" data-i18n="bmi">BMI</span>
         <div class="bmi-values">
           <div class="bmi-val-item">
-            <div class="bmi-val-label">Start</div>
+            <div class="bmi-val-label" data-i18n="bmiStart">Start</div>
             <div class="bmi-val-num" id="bmiStartVal" style="color:#9ecba5">—</div>
           </div>
           <div class="bmi-val-item">
-            <div class="bmi-val-label">Now</div>
+            <div class="bmi-val-label" data-i18n="bmiNow">Now</div>
             <div class="bmi-val-num" id="bmiCurVal" style="color:#fff">—</div>
           </div>
         </div>
@@ -799,16 +837,16 @@ input::placeholder{color:rgba(180,220,185,.3)}
       </div>
     </div>
     <div class="bmi-setup-hint" id="bmiSetupHint" style="display:none">
-      Set height in ⚙ Settings to see BMI
+      <span data-i18n="bmiHint">Set height in ⚙ Settings to see BMI</span>
     </div>
     <!-- GOAL BOX -->
     <div class="goal-box" id="goalBox">
       <div class="goal-row">
-        <label>Goal&nbsp;kg</label>
+        <label data-i18n="goalKg">Goal&nbsp;kg</label>
         <input type="number" id="goalInput" placeholder="e.g. 70.0" step="0.1" min="20" max="300"/>
-        <button class="btn-set-goal" onclick="setGoal()">Set</button>
+        <button class="btn-set-goal" onclick="setGoal()" data-i18n="set">Set</button>
       </div>
-      <div id="goalContent"><div class="goal-empty">Set a desirable weight to see prediction.</div></div>
+      <div id="goalContent"><div class="goal-empty"><span data-i18n="goalEmpty">Set a desirable weight to see prediction.</span></div></div>
     </div>
 
   </div>
@@ -821,7 +859,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
     <div id="weightChartWrap" style="display:none"><div class="chart-box" style="height:220px"><canvas id="weightChart"></canvas></div></div>
     <div class="no-data" id="weightNoData">Add 2+ entries to see your chart</div>
     <div class="divider" id="logWrap" style="display:none">
-      <div class="sub-label">All Entries</div>
+      <div class="sub-label" data-i18n="allEntries">All Entries</div>
       <div class="log-list" id="weightLog"></div>
     </div>
   </div>
@@ -832,8 +870,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <div class="tab-panel" id="panel-food">
   <div class="section">
     <div class="fd-header">
-      <span class="fd-title">Food Database</span>
-      <button class="btn-add-cat" onclick="openCatModal()">+ Category</button>
+      <span class="fd-title" data-i18n="foodDb">Food Database</span>
+      <button class="btn-add-cat" onclick="openCatModal()" data-i18n="addCategory">+ Category</button>
     </div>
     <div id="catList"></div>
   </div>
@@ -842,7 +880,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <!-- PERIOD EDIT MODAL -->
 <div class="period-modal-overlay" id="periodModal">
   <div class="period-modal">
-    <h3 id="pmTitle">New Period</h3>
+    <h3 id="pmTitle" data-i18n="newPeriod">New Period</h3>
     <div class="pm-field">
       <label>Period name</label>
       <input type="text" id="pmName" placeholder="e.g. Summer Cut 2025" maxlength="50" autocomplete="off"/>
@@ -853,7 +891,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
     </div>
     <div class="pm-check" onclick="togglePmCurrent()">
       <input type="checkbox" id="pmCurrentCb"/>
-      <span>Current (ongoing — no end date yet)</span>
+      <span data-i18n="currentPeriod">Current (ongoing — no end date yet)</span>
     </div>
     <div class="pm-field" id="pmEndWrap">
       <label>End date</label>
@@ -870,9 +908,9 @@ input::placeholder{color:rgba(180,220,185,.3)}
       </div>
     </div>
     <div class="pm-import-wrap" id="pmImportWrap">
-      <span class="pm-import-label">📥 Import data from Excel</span>
+      <span class="pm-import-label" data-i18n="importExcel">📥 Import data from Excel</span>
       <div class="pm-import-row">
-        <button class="pm-import-btn" onclick="triggerXlsxImport()">Choose .xlsx file</button>
+        <button class="pm-import-btn" onclick="triggerXlsxImport()" data-i18n="chooseFile">Choose .xlsx file</button>
         <span class="pm-import-info">Import weights &amp; calories<br>from a FitFriend export</span>
       </div>
       <div class="pm-import-status" id="pmImportStatus"></div>
@@ -887,8 +925,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <!-- MERGE MODAL -->
 <div class="merge-modal-overlay" id="mergeModal">
   <div class="merge-modal">
-    <h3>Merge Periods</h3>
-    <p>Combines weight, calorie and note data from both periods. The original periods are kept — a new merged period is created.</p>
+    <h3 data-i18n="mergePeriods">Merge Periods</h3>
+    <p><span data-i18n="mergeDesc">Combines weight, calorie and note data from both periods. The original periods are kept — a new merged period is created.</span></p>
     <div class="merge-period-pick">
       <div>
         <div class="merge-pick-label">First period</div>
@@ -910,7 +948,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
     <div class="merge-preview" id="mergePreview">Select two periods above to preview.</div>
     <div class="merge-btns">
       <button class="btn" style="background:none;border:1px solid rgba(180,220,185,.15);color:rgba(180,220,185,.5)" onclick="closeMergeModal()">Cancel</button>
-      <button class="btn btn-green" onclick="confirmMerge()">Merge</button>
+      <button class="btn btn-green" onclick="confirmMerge()" data-i18n="mergeBtn">Merge</button>
     </div>
   </div>
 </div>
@@ -921,8 +959,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
   <!-- COMPARISON CHART -->
   <div class="hist-compare-wrap" id="histCompareWrap">
     <div class="hist-compare-head">
-      <span class="hist-compare-title">Compare Periods</span>
-      <button class="btn-add-cat" style="font-size:10px;padding:5px 11px" onclick="openMergeModal()">⊕ Merge</button>
+      <span class="hist-compare-title" data-i18n="comparePeriods">Compare Periods</span>
+      <button class="btn-add-cat" style="font-size:10px;padding:5px 11px" onclick="openMergeModal()" data-i18n="merge">⊕ Merge</button>
     </div>
     <div class="hist-compare-selector" id="cmpSelector"></div>
     <div class="hist-compare-legend" id="histCompareLegend"></div>
@@ -931,8 +969,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
   <!-- NEW PERIOD BUTTON -->
   <div class="hist-section" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px">
-    <span class="hist-sec-label" style="margin-bottom:0">Periods</span>
-    <button class="btn-add-cat" onclick="openPeriodModal(null)">+ New Period</button>
+    <span class="hist-sec-label" style="margin-bottom:0" data-i18n="periods">Periods</span>
+    <button class="btn-add-cat" onclick="openPeriodModal(null)" data-i18n="newPeriod">+ New Period</button>
   </div>
 
   <!-- PERIODS LIST -->
@@ -948,7 +986,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
     <!-- BODY PROFILE -->
     <div class="settings-group">
-      <div class="settings-group-title">Body Profile</div>
+      <div class="settings-group-title" data-i18n="bodyProfile">Body Profile</div>
       <div class="settings-row">
         <label>Height (cm)</label>
         <input type="number" id="settingHeight" placeholder="e.g. 178" min="100" max="250" step="1"/>
@@ -970,13 +1008,13 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
     <!-- CALORIES GOAL -->
     <div class="settings-group">
-      <div class="settings-group-title">Nutrition</div>
+      <div class="settings-group-title" data-i18n="nutrition">Nutrition</div>
       <div class="settings-row">
         <label>Daily calorie goal (kcal)</label>
         <input type="number" id="settingCalGoal" placeholder="e.g. 1300" min="100" max="9999" step="1"/>
         <button class="btn-settings-save" onclick="saveCalGoal()">Save</button>
       </div>
-      <div class="settings-hint">Shows how many kcal remain today in the Tracker tab.</div>
+      <div class="settings-hint"><span data-i18n="calGoalHint">Shows how many kcal remain today in the Tracker tab.</span></div>
     </div>
 
   </div>
@@ -989,6 +1027,291 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
+
+// ============================================================
+//  INTERNATIONALISATION
+// ============================================================
+const LANG_KEY = 'wt_lang';
+
+const I18N = {
+  en: {
+    headerTag:      'Body Metrics',
+    tabTracker:     '📊 Tracker',
+    tabFood:        '🍽 Food DB',
+    tabHistory:     '📉 History',
+    tabSettings:    '⚙ Settings',
+    connect:        'Connect',
+    signOut:        'Sign out',
+    allData:        '✕ All data',
+    lateTitle:      "That's enough food for today.",
+    lateSub:        "It's getting late — your body is winding down for the night.",
+    selectedDate:   'Selected Date',
+    today:          'Today',
+    calPlaceholder: 'Add kcal or type food name…',
+    add:            '+ Add',
+    calChart:       'Calories Chart',
+    weightLog:      'Weight Log',
+    weightPh:       'e.g. 75.4',
+    saveKg:         'Save kg',
+    notes:          'Notes',
+    notePh:         'Add a note for this date…',
+    starting:       'Starting',
+    change:         'Change',
+    weightChart:    'Weight Chart',
+    allEntries:     'All Entries',
+    bmi:            'BMI',
+    bmiStart:       'Start',
+    bmiNow:         'Now',
+    bmiHint:        'Set height in ⚙ Settings to see BMI',
+    goalKg:         'Goal kg',
+    set:            'Set',
+    goalEmpty:      'Set a desirable weight to see prediction.',
+    foodDb:         'Food Database',
+    addCategory:    '+ Category',
+    comparePeriods: 'Compare Periods',
+    merge:          '⊕ Merge',
+    periods:        'Periods',
+    newPeriod:      '+ New Period',
+    newCategory:    'New Category',
+    catPh:          'e.g. KFC, Home Food, Café…',
+    currentPeriod:  'Current (ongoing — no end date yet)',
+    importExcel:    '📥 Import data from Excel',
+    chooseFile:     'Choose .xlsx file',
+    mergePeriods:   'Merge Periods',
+    mergeDesc:      'Combines weight, calorie and note data from both periods. The original periods are kept — a new merged period is created.',
+    mergeBtn:       'Merge',
+    bodyProfile:    'Body Profile',
+    nutrition:      'Nutrition',
+    bmiSettingsHint:'Used for BMI display in the Tracker tab.',
+    calGoalHint:    'Shows how many kcal remain today in the Tracker tab.',
+    language:       'Language',
+    // dynamic strings (used in JS)
+    until8pm:       'Until 8 PM',
+    until4am:       'Until 4 AM',
+    lateNightSub:   t('lateNightSub'),
+    tapConnect:     'Tap Connect to sign in',
+    syncedWith:     'Synced with Drive',
+    savedTo:        'Saved to Drive',
+    autoConnect:    'Auto-connecting…',
+    connecting:     'Connecting…',
+    loadingDrive:   'Loading from Drive…',
+    signedOut:      t('signedOut'),
+    sessionExpired: t('sessionExpired'),
+    calAdded:       'Calories added ✓',
+    weightSaved:    'Weight saved ✓',
+    goalSet:        'Goal set ✓',
+    catAdded:       'Category added ✓',
+    productSaved:   'Product saved ✓',
+    periodSaved:    'Period saved ✓',
+    periodUpdated:  'Period updated ✓',
+    periodFinished: 'Period finished ✓',
+    bodyProfileSaved:'Body profile saved ✓',
+    calGoalSaved:   'Calorie goal saved ✓',
+    exported:       'Exported ✓',
+    noWeightFor:    'No weight recorded for',
+    addProduct:     '＋ Add product',
+    noProductsYet:  t('noProductsYet'),
+    viewBtn:        t('viewBtn'),
+    viewingBtn:     t('viewingBtn'),
+    editBtn:        t('editBtn'),
+    finishBtn:      t('finishBtn'),
+    deleteBtn:      t('deleteBtn'),
+    exportBtn:      t('exportBtn'),
+    daysLabel:      'Days',
+    lostLabel:      'Lost',
+    perDayLabel:    'Per day',
+    currentBadge:   t('currentBadge'),
+    doneBadge:      t('doneBadge'),
+    viewingBadge:   t('viewingBtn'),
+    remaining:      'Remaining',
+    rate:           'Rate',
+    estGoalDate:    'Est. goal date',
+    trendWrong:     'Trend going wrong way',
+    need2entries:   'Need 2+ entries',
+    selectSuggest:  'Select a suggestion or enter a number',
+    validAmount:    'Enter a valid amount (1–10000)',
+    validWeight:    'Enter a valid weight (20–300 kg)',
+    validGoal:      'Enter a valid goal weight (20–300 kg)',
+    select2periods: 'Select two periods',
+    select2diff:    'Select two different periods',
+    enterMergeName: 'Enter a name for the merged period',
+    enterCatName:   'Enter a category name',
+    enterPeriodName:'Enter a period name',
+    selectStartDate:'Select a start date',
+    selectEndDate:  'Select an end date',
+    endAfterStart:  'End date must be after start',
+    validHeight:    'Enter a valid height (100–250 cm)',
+    validCalGoal:   'Enter a valid goal (100–9999 kcal)',
+    validProdName:  'Enter a product name',
+    validGrams:     'Enter valid grams',
+    validKcal:      'Enter valid kcal/100g',
+    mergedInto:     (name) => `Merged into "${name}" ✓`,
+    foodAdded:      (name, kcal) => `${name} — ${kcal} kcal added ✓`,
+    importResult:   (w, c, n, s) => `✓ ${w} weights${c ? ', '+c+' calorie entries' : ''}${n ? ', '+n+' notes' : ''}${s ? ', '+s+' rows skipped' : ''}`,
+  },
+  uk: {
+    headerTag:      'Метрики тіла',
+    tabTracker:     '📊 Трекер',
+    tabFood:        '🍽 База їжі',
+    tabHistory:     '📉 Історія',
+    tabSettings:    '⚙ Налаштування',
+    connect:        'Підключити',
+    signOut:        'Вийти',
+    allData:        '✕ Всі дані',
+    lateTitle:      'Вистачить їсти на сьогодні.',
+    lateSub:        'Вже пізно — твоє тіло готується до сну.',
+    selectedDate:   'Вибрана дата',
+    today:          'Сьогодні',
+    calPlaceholder: 'Додати ккал або назву страви…',
+    add:            '+ Додати',
+    calChart:       'Графік калорій',
+    weightLog:      'Журнал ваги',
+    weightPh:       'напр. 75.4',
+    saveKg:         'Зберегти',
+    notes:          'Нотатки',
+    notePh:         'Додати нотатку до цієї дати…',
+    starting:       'Початок',
+    change:         'Зміна',
+    weightChart:    'Графік ваги',
+    allEntries:     'Усі записи',
+    bmi:            'ІМТ',
+    bmiStart:       'Початок',
+    bmiNow:         'Зараз',
+    bmiHint:        'Вкажіть зріст у Налаштуваннях для ІМТ',
+    goalKg:         'Ціль кг',
+    set:            'Задати',
+    goalEmpty:      'Вкажіть бажану вагу для прогнозу.',
+    foodDb:         'База продуктів',
+    addCategory:    '+ Категорія',
+    comparePeriods: 'Порівняти періоди',
+    merge:          '⊕ Об’єднати',
+    periods:        'Періоди',
+    newPeriod:      '+ Новий період',
+    newCategory:    'Нова категорія',
+    catPh:          'напр. KFC, Домашня їжа…',
+    currentPeriod:  'Поточний (без дати завершення)',
+    importExcel:    '📥 Імпорт з Excel',
+    chooseFile:     'Вибрати .xlsx файл',
+    mergePeriods:   'Об’єднати періоди',
+    mergeDesc:      'Об’єднує дані ваги, калорій та нотаток обох періодів. Оригінальні періоди залишаються.',
+    mergeBtn:       'Об’єднати',
+    bodyProfile:    'Тіло',
+    nutrition:      'Харчування',
+    bmiSettingsHint:'Використовується для відображення ІМТ.',
+    calGoalHint:    'Показує залишок калорій у Трекері.',
+    language:       'Мова',
+    until8pm:       'До 20:00',
+    until4am:       'До 4:00',
+    lateNightSub:   'Пізня ніч — час відпочивати 🌙',
+    tapConnect:     'Натисніть Підключити',
+    syncedWith:     'Синхронізовано з Drive',
+    savedTo:        'Збережено в Drive',
+    autoConnect:    'Підключення…',
+    connecting:     'Підключення…',
+    loadingDrive:   'Завантаження з Drive…',
+    signedOut:      'Вийшли — натисніть Підключити для входу',
+    sessionExpired: 'Сесія закінчилась — натисніть Підключити',
+    calAdded:       'Калорії додано ✓',
+    weightSaved:    'Вага збережена ✓',
+    goalSet:        'Ціль задана ✓',
+    catAdded:       'Категорію додано ✓',
+    productSaved:   'Продукт збережено ✓',
+    periodSaved:    'Період збережено ✓',
+    periodUpdated:  'Період оновлено ✓',
+    periodFinished: 'Період завершено ✓',
+    bodyProfileSaved:'Профіль збережено ✓',
+    calGoalSaved:   'Ціль калорій збережено ✓',
+    exported:       'Експортовано ✓',
+    noWeightFor:    'Вага не записана для',
+    addProduct:     '＋ Додати продукт',
+    noProductsYet:  'ПРОДУКТІВ НЕМАЄ',
+    viewBtn:        '👁 Переглянути',
+    viewingBtn:     '👁 Перегляд',
+    editBtn:        '✎ Редагувати',
+    finishBtn:      '✓ Завершити',
+    deleteBtn:      '✕ Видалити',
+    exportBtn:      '⬇ Експорт',
+    daysLabel:      'Днів',
+    lostLabel:      'Схуднено',
+    perDayLabel:    'На день',
+    currentBadge:   '● Поточний',
+    doneBadge:      '✓ Завершено',
+    viewingBadge:   '👁 Перегляд',
+    remaining:      'Залишок',
+    rate:           'Темп',
+    estGoalDate:    'Орієнт. дата цілі',
+    trendWrong:     'Тренд у хибному напрямку',
+    need2entries:   'Потрібно 2+ записи',
+    selectSuggest:  'Виберіть підказку або введіть число',
+    validAmount:    'Введіть допустиму кількість (1–10000)',
+    validWeight:    'Введіть допустиму вагу (20–300 кг)',
+    validGoal:      'Введіть допустиму цільову вагу (20–300 кг)',
+    select2periods: 'Виберіть два періоди',
+    select2diff:    'Виберіть два різних періоди',
+    enterMergeName: 'Введіть назву об’єднаного періоду',
+    enterCatName:   'Введіть назву категорії',
+    enterPeriodName:'Введіть назву періоду',
+    selectStartDate:'Виберіть дату початку',
+    selectEndDate:  'Виберіть дату завершення',
+    endAfterStart:  'Дата завершення має бути після початку',
+    validHeight:    'Введіть допустимий зріст (100–250 см)',
+    validCalGoal:   'Введіть допустиму ціль (100–9999 ккал)',
+    validProdName:  'Введіть назву продукту',
+    validGrams:     'Введіть допустиму вагу порції',
+    validKcal:      'Введіть допустиму калорійність/100г',
+    mergedInto:     (name) => `Об’єднано в "${name}" ✓`,
+    foodAdded:      (name, kcal) => `${name} — ${kcal} ккал додано ✓`,
+    importResult:   (w, c, n, s) => `✓ ${w} записів ваги${c ? ', '+c+' калорій' : ''}${n ? ', '+n+' нотаток' : ''}${s ? ', '+s+' рядків пропущено' : ''}`,
+  }
+};
+
+function getLang() {
+  return localStorage.getItem(LANG_KEY) || 'en';
+}
+function t(key, ...args) {
+  const lang = getLang();
+  const val  = I18N[lang]?.[key] ?? I18N.en?.[key] ?? key;
+  return typeof val === 'function' ? val(...args) : val;
+}
+
+function applyLang() {
+  const lang = getLang();
+  document.getElementById('htmlRoot').lang = lang;
+
+  // Update text content of tagged elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    const str = t(key);
+    // Preserve child elements (spans, etc) — only set if no child elements
+    if (el.children.length === 0) el.textContent = str;
+    else {
+      // Find first text node and update it
+      for (const node of el.childNodes) {
+        if (node.nodeType === 3 && node.textContent.trim()) {
+          node.textContent = str; break;
+        }
+      }
+    }
+  });
+
+  // Update placeholders
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPh);
+  });
+
+  // Update lang toggle buttons
+  document.getElementById('langBtnEn').classList.toggle('active', lang === 'en');
+  document.getElementById('langBtnUk').classList.toggle('active', lang === 'uk');
+}
+
+function setLang(lang) {
+  localStorage.setItem(LANG_KEY, lang);
+  applyLang();
+  render(); // re-render dynamic content
+  if (document.getElementById('panel-history').classList.contains('active')) renderHistory();
+  if (document.getElementById('panel-food').classList.contains('active')) renderFoodDb();
+}
+
 // ============================================================
 //  CONFIG
 // ============================================================
@@ -1028,14 +1351,16 @@ function loadLocal() {
   try {
     const d = JSON.parse(localStorage.getItem(DATA_KEY));
     if (!d) return freshDb();
-    if (!d.food)    d.food    = { categories: [], items: [] };
-    if (!d.periods) d.periods = [];
-    if (!d.notes)   d.notes   = {};
+    if (!d.food)     d.food     = { categories: [], items: [] };
+    if (!d.periods)  d.periods  = [];
+    if (!d.notes)    d.notes    = {};
+    if (!d.settings) d.settings = { height: null, age: null, sex: 'm', calGoal: null };
     return d;
   } catch { return freshDb(); }
 }
 function freshDb() {
-  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {} }; // notes: {date: string}, periods: [{id,name,start,end|null,startW,endW|null,current,done}]
+  // settings: { height: cm|null, age: years|null, sex: 'm'|'f', calGoal: kcal|null }
+  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {}, settings: { height: null, age: null, sex: 'm', calGoal: null } };
 }
 function saveLocal() {
   try { localStorage.setItem(DATA_KEY, JSON.stringify(db)); } catch {}
@@ -1095,14 +1420,14 @@ function startAuth() {
     if (remainingMs > 0) {
       tokenRefreshTimer = setTimeout(() => refreshToken(), remainingMs);
     }
-    setSyncStatus('busy', 'Loading from Drive…');
+    setSyncStatus('busy', t('loadingDrive'));
     loadFromDrive();
     return;
   }
 
   // No valid cached token — try silently first, never popup automatically
   const savedEmail = localStorage.getItem(EMAIL_KEY);
-  setSyncStatus('busy', 'Connecting…');
+  setSyncStatus('busy', t('connecting'));
   requestDriveTokenSilent(savedEmail || null);
 }
 
@@ -1133,7 +1458,7 @@ function requestDriveTokenSilent(hint) {
       if (tr.error) {
         // Silent failed — do NOT open popup automatically.
         // Just show a quiet connect button.
-        setSyncStatus('err', 'Tap Connect to sign in');
+        setSyncStatus('err', t('tapConnect'));
         document.getElementById('syncBtn').textContent = 'Connect';
         return;
       }
@@ -1144,7 +1469,7 @@ function requestDriveTokenSilent(hint) {
   // If GIS doesn't respond in 5 s (script not loaded yet, etc.) — show Connect
   authTimeoutTimer = setTimeout(() => {
     if (!accessToken) {
-      setSyncStatus('err', 'Tap Connect to sign in');
+      setSyncStatus('err', t('tapConnect'));
       document.getElementById('syncBtn').textContent = 'Connect';
     }
   }, 5000);
@@ -1157,7 +1482,7 @@ function requestDriveTokenInteractive(hint) {
   if (!clientId) return;
 
   clearTimeout(authTimeoutTimer);
-  setSyncStatus('busy', 'Connecting…');
+  setSyncStatus('busy', t('connecting'));
 
   const client = google.accounts.oauth2.initTokenClient({
     client_id: clientId,
@@ -1204,7 +1529,7 @@ function onTokenSuccess(tr, hint) {
   clearTimeout(tokenRefreshTimer);
   tokenRefreshTimer = setTimeout(() => refreshToken(), (expiresIn - 300) * 1000);
 
-  setSyncStatus('busy', 'Loading from Drive…');
+  setSyncStatus('busy', t('loadingDrive'));
   loadFromDrive();
 }
 
@@ -1246,7 +1571,7 @@ function refreshTokenThenRetry() {
         onTokenSuccess(tr, email);
         saveToDrive();
       } else {
-        setSyncStatus('err', 'Session expired — tap Connect');
+        setSyncStatus('err', t('sessionExpired'));
         document.getElementById('syncBtn').textContent = 'Connect';
       }
     },
@@ -1266,7 +1591,7 @@ function signOut() {
   if (tok) { try { google.accounts.oauth2.revoke(tok, ()=>{}); } catch {} }
   document.getElementById('signOutBtn').style.display = 'none';
   document.getElementById('syncBtn').textContent = 'Connect';
-  setSyncStatus('', 'Signed out — tap Connect to sign in again');
+  setSyncStatus('', t('signedOut'));
   flash('Signed out');
 }
 
@@ -1290,13 +1615,15 @@ async function loadFromDrive() {
       document.getElementById('signOutBtn').style.display = 'block';
       const cr   = await fetch(`${DRIVE_API}/files/${driveFileId}?alt=media`, { headers: { Authorization: 'Bearer ' + accessToken } });
       const data = await cr.json();
-      if (!data.food)    data.food    = { categories: [], items: [] };
-      if (!data.periods) data.periods = [];
-      if (!data.notes)   data.notes   = {};
+      if (!data.food)     data.food     = { categories: [], items: [] };
+      if (!data.periods)  data.periods  = [];
+      if (!data.notes)    data.notes    = {};
+      if (!data.settings) data.settings = { height: null, age: null, sex: 'm', calGoal: null };
       db = data;
       saveLocal();
       autoActivateCurrentPeriod();
-  renderSettings(); // must run after db is loaded from Drive
+  renderSettings();
+  applyLang(); // must run after db is loaded from Drive
       render();
       setSyncStatus('ok', 'Synced with Drive', json.files[0].modifiedTime);
     } else {
@@ -1557,7 +1884,7 @@ function selectSuggestion(item) {
   save();
   renderCalories();
   renderCalChart();
-  flash(`${item.name} — ${item.kcalPortion} kcal added ✓`);
+  flash(t('foodAdded', item.name, item.kcalPortion));
 }
 
 // ============================================================
@@ -1569,8 +1896,8 @@ function addCalories() {
   // If it's a number — add directly; if text but no suggestion selected — ignore
   const val = parseFloat(raw.replace(',','.'));
   if (!raw || isNaN(val) || val < 1 || val > 10000) {
-    if (raw && isNaN(val)) { flash('Select a suggestion or enter a number', true); return; }
-    flash('Enter a valid amount (1–10000)', true); return;
+    if (raw && isNaN(val)) { flash(t('selectSuggest'), true); return; }
+    flash(t('validAmount'), true); return;
   }
   const date = getDate();
   if (!db.calories[date]) db.calories[date] = [];
@@ -1580,7 +1907,7 @@ function addCalories() {
   save();
   renderCalories();
   renderCalChart();
-  flash('Calories added ✓');
+  flash(t('calAdded'));
 }
 
 function deleteCal(date, id) {
@@ -1634,11 +1961,11 @@ function renderCalories() {
 function saveWeight() {
   const inp = document.getElementById('weightInput');
   const val = parseFloat(inp.value.replace(',','.'));
-  if (!val || val < 20 || val > 300) { flash('Enter a valid weight (20–300 kg)', true); return; }
+  if (!val || val < 20 || val > 300) { flash(t('validWeight'), true); return; }
   db.weights[getDate()] = val;
   inp.value = '';
   save(); renderWeight(); renderWeightChart();
-  flash('Weight saved ✓');
+  flash(t('weightSaved'));
 }
 function deleteWeight(date) {
   delete db.weights[date];
@@ -1664,7 +1991,7 @@ function renderWeight() {
     hint.style.display='none';
   } else {
     display.style.display='none'; hint.style.display='block';
-    hint.textContent = `No weight recorded for ${fmtDate(date)}`;
+    hint.textContent = `${t('noWeightFor')} ${fmtDate(date)}`;
   }
   renderStats(); renderWeightLog(); renderGoal();
 }
@@ -1849,13 +2176,13 @@ document.getElementById('catModal').addEventListener('mousedown', e => {
 
 function confirmAddCat() {
   const name = document.getElementById('catNameInput').value.trim();
-  if (!name) { flash('Enter a category name', true); return; }
+  if (!name) { flash(t('enterCatName'), true); return; }
   if (!db.food) db.food = { categories: [], items: [] };
   db.food.categories.push({ id: Date.now(), name });
   save();
   closeCatModal();
   renderFoodDb();
-  flash('Category added ✓');
+  flash(t('catAdded'));
 }
 
 function deleteCategory(catId) {
@@ -1904,14 +2231,14 @@ function saveFood(catId) {
   const name   = block.querySelector('.inp-name').value.trim();
   const grams  = parseFloat(block.querySelector('.inp-grams').value);
   const k100   = parseFloat(block.querySelector('.inp-kcal100').value);
-  if (!name)         { flash('Enter a product name', true); return; }
-  if (!grams || grams <= 0) { flash('Enter valid grams', true); return; }
-  if (!k100  || k100 <= 0)  { flash('Enter valid kcal/100g', true); return; }
+  if (!name)         { flash(t('validProdName'), true); return; }
+  if (!grams || grams <= 0) { flash(t('validGrams'), true); return; }
+  if (!k100  || k100 <= 0)  { flash(t('validKcal'), true); return; }
   db.food.items.push({ id: Date.now(), catId, name, grams, kcalPer100: k100 });
   save();
   block.classList.remove('adding');
   renderFoodDb();
-  flash('Product saved ✓');
+  flash(t('productSaved'));
 }
 
 function deleteFoodItem(itemId) {
@@ -2078,10 +2405,10 @@ const GOAL_KEY = 'wt_goal';
 function setGoal() {
   const inp = document.getElementById('goalInput');
   const val = parseFloat(inp.value.replace(',','.'));
-  if (!val || val < 20 || val > 300) { flash('Enter a valid goal weight (20–300 kg)', true); return; }
+  if (!val || val < 20 || val > 300) { flash(t('validGoal'), true); return; }
   localStorage.setItem(GOAL_KEY, val);
   renderGoal();
-  flash('Goal set ✓');
+  flash(t('goalSet'));
 }
 
 function renderGoal() {
@@ -2098,7 +2425,7 @@ function renderGoal() {
     .map(([d,v]) => ({ d, v: parseFloat(v) }));
 
   if (!goal || !entries.length) {
-    content.innerHTML = '<div class="goal-empty">Set a desirable weight to see prediction.</div>';
+    content.innerHTML = '<div class="goal-empty"><span data-i18n="goalEmpty">Set a desirable weight to see prediction.</span></div>';
     return;
   }
 
@@ -2410,9 +2737,9 @@ function confirmMerge() {
   const idB  = parseInt(document.getElementById('mergePickB').value);
   const name = document.getElementById('mergeNameInput').value.trim();
 
-  if (!idA || !idB)  { flash('Select two periods', true); return; }
-  if (idA === idB)   { flash('Select two different periods', true); return; }
-  if (!name)         { flash('Enter a name for the merged period', true); return; }
+  if (!idA || !idB)  { flash(t('select2periods'), true); return; }
+  if (idA === idB)   { flash(t('select2diff'), true); return; }
+  if (!name)         { flash(t('enterMergeName'), true); return; }
 
   const pA = (db.periods || []).find(p => p.id === idA);
   const pB = (db.periods || []).find(p => p.id === idB);
@@ -2464,7 +2791,7 @@ function confirmMerge() {
   closeMergeModal();
   renderHistory();
   renderCompareChart();
-  flash(`Merged into "${name}" ✓`);
+  flash(t('mergedInto', name));
 }
 
 // ============================================================
@@ -2531,9 +2858,9 @@ function savePeriodModal() {
   const startW  = parseFloat(document.getElementById('pmStartW').value) || null;
   const endW    = isCurrent ? null : (parseFloat(document.getElementById('pmEndW').value) || null);
 
-  if (!name)  { flash('Enter a period name', true); return; }
-  if (!start) { flash('Select a start date', true); return; }
-  if (!isCurrent && end && end <= start) { flash('End date must be after start', true); return; }
+  if (!name)  { flash(t('enterPeriodName'), true); return; }
+  if (!start) { flash(t('selectStartDate'), true); return; }
+  if (!isCurrent && end && end <= start) { flash(t('endAfterStart'), true); return; }
 
   if (!db.periods) db.periods = [];
 
@@ -2568,7 +2895,7 @@ function finishPeriod(id) {
   p.current = false;
   p.done    = true;
   save(); renderHistory();
-  flash('Period finished ✓');
+  flash(t('periodFinished'));
 }
 
 // ── View period (filter tracker) ─────────────────────────────
@@ -2644,7 +2971,7 @@ function renderHistory() {
         </div>
         <div class="period-card-actions">
           <button class="btn-pact ${isViewing ? 'viewing-on primary' : ''}" onclick="setViewingPeriod(${p.id})">
-            ${isViewing ? '👁 Viewing' : '👁 View'}
+            ${isViewing ? t('viewingBtn') : t('viewBtn')}
           </button>
           <button class="btn-pact export" onclick="exportPeriodXlsx(${p.id})">⬇ Export</button>
           <button class="btn-pact" onclick="openPeriodModal(${p.id})">✎ Edit</button>
@@ -2742,7 +3069,7 @@ function exportPeriodXlsx(periodId) {
 
   const safeName = p.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
   XLSX.writeFile(wb, `FitFriend_${safeName}_${p.start}.xlsx`);
-  flash('Exported ✓');
+  flash(t('exported'));
 }
 
 // ── Import ─────────────────────────────────────────────────
@@ -2965,7 +3292,7 @@ function handleXlsxImport(event) {
       const skipNote = skipped ? `, ${skipped} rows skipped (unreadable date)` : '';
       const calNote  = calCount ? `, ${calCount} calorie entries` : '';
       const noteNote = noteCount ? `, ${noteCount} notes` : '';
-      statusEl.textContent = `✓ ${weightCount} weights${calNote}${noteNote}${skipNote}`;
+      statusEl.textContent = t('importResult', weightCount, calCount, noteCount, skipped);
       statusEl.style.color = weightCount + calCount > 0 ? '#78dc8c' : '#f0c060';
 
     } catch(err) {
@@ -3014,12 +3341,12 @@ function updateTimer() {
     // Night phase — count down to 04:00
     targetH = 4;
     phase   = 'night';
-    label.textContent = 'Until 4 AM';
+    label.textContent = t('until4am');
   } else {
     // Day phase — count down to 20:00
     targetH = 20;
     phase   = 'day';
-    label.textContent = 'Until 8 PM';
+    label.textContent = t('until8pm');
   }
 
   box.className = 'section timer-phase-' + phase;
@@ -3036,7 +3363,7 @@ function updateTimer() {
 
   val.innerHTML = `${remH}<span>h</span> ${String(remM).padStart(2,'0')}<span>m</span>`;
   sub.textContent = phase === 'night'
-    ? 'Late night — time to rest 🌙'
+    ? t('lateNightSub')
     : `${String(remH).padStart(2,'0')}:${String(remM).padStart(2,'0')}:${String(remS).padStart(2,'0')} remaining`;
 }
 
@@ -3050,9 +3377,6 @@ function startTimer() {
 // ============================================================
 //  BMI
 // ============================================================
-const HEIGHT_KEY = 'wt_height';
-const AGE_KEY    = 'wt_age';
-const SEX_KEY    = 'wt_sex';
 
 // BMI strip range: 10–50 kg/m²
 const BMI_MIN = 10, BMI_MAX = 50;
@@ -3078,7 +3402,7 @@ function bmiToPercent(bmi) {
 function renderBmi(startWeight, curWeight) {
   const wrap      = document.getElementById('bmiWrap');
   const hint      = document.getElementById('bmiSetupHint');
-  const heightCm  = parseFloat(localStorage.getItem(HEIGHT_KEY));
+  const heightCm  = parseFloat(ensureSettings().height);
 
   if (!heightCm) {
     wrap.style.display = 'none';
@@ -3117,44 +3441,50 @@ function renderBmi(startWeight, curWeight) {
 // ============================================================
 //  SETTINGS
 // ============================================================
-const CAL_GOAL_KEY = 'wt_cal_goal';
+// Settings now live in db.settings — synced to Google Drive like everything else.
+// localStorage copy (via saveLocal/save) acts as instant-load cache only.
+
+function ensureSettings() {
+  if (!db.settings) db.settings = { height: null, age: null, sex: 'm', calGoal: null };
+  return db.settings;
+}
 
 function getCalGoal() {
-  const v = parseInt(localStorage.getItem(CAL_GOAL_KEY));
-  return isNaN(v) ? null : v;
+  const v = ensureSettings().calGoal;
+  return (v && !isNaN(v)) ? v : null;
 }
 
 function saveCalGoal() {
   const inp = document.getElementById('settingCalGoal');
   const val = parseInt(inp.value);
-  if (!val || val < 100 || val > 9999) { flash('Enter a valid goal (100–9999 kcal)', true); return; }
-  localStorage.setItem(CAL_GOAL_KEY, val);
-  flash('Calorie goal saved ✓');
+  if (!val || val < 100 || val > 9999) { flash(t('validCalGoal'), true); return; }
+  ensureSettings().calGoal = val;
+  save(); // persist locally + sync to Drive
+  flash(t('calGoalSaved'));
   render(); // update remaining bar immediately
 }
 
 function renderSettings() {
-  const goal = getCalGoal();
-  const inp  = document.getElementById('settingCalGoal');
-  if (goal) inp.value = goal;
+  const s = ensureSettings();
+  const inp = document.getElementById('settingCalGoal');
+  if (s.calGoal) inp.value = s.calGoal;
 
-  const h = localStorage.getItem(HEIGHT_KEY);
-  const a = localStorage.getItem(AGE_KEY);
-  const s = localStorage.getItem(SEX_KEY) || 'm';
-  if (h) document.getElementById('settingHeight').value = h;
-  if (a) document.getElementById('settingAge').value = a;
-  document.getElementById('settingSex').value = s;
+  if (s.height) document.getElementById('settingHeight').value = s.height;
+  if (s.age)    document.getElementById('settingAge').value    = s.age;
+  document.getElementById('settingSex').value = s.sex || 'm';
 }
 
 function saveBodyProfile() {
   const h = parseInt(document.getElementById('settingHeight').value);
   const a = parseInt(document.getElementById('settingAge').value);
   const s = document.getElementById('settingSex').value;
-  if (!h || h < 100 || h > 250) { flash('Enter a valid height (100–250 cm)', true); return; }
-  localStorage.setItem(HEIGHT_KEY, h);
-  if (a && a >= 10 && a <= 120) localStorage.setItem(AGE_KEY, a);
-  localStorage.setItem(SEX_KEY, s);
-  flash('Body profile saved ✓');
+  if (!h || h < 100 || h > 250) { flash(t('validHeight'), true); return; }
+  const settings = ensureSettings();
+  settings.height = h;
+  settings.age    = (a && a >= 10 && a <= 120) ? a : null;
+  settings.sex    = s;
+  save(); // persist locally + sync to Drive
+  flash(t('bodyProfileSaved'));
   renderStats(); // re-render BMI strip
 }
 
