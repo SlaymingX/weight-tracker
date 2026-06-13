@@ -1402,6 +1402,25 @@ const TOKEN_LS_KEY  = 'wt_token';
 const EXPIRY_LS_KEY = 'wt_token_expiry';
 let authTimeoutTimer = null;
 
+// ── Wait for Google Identity Services script to finish loading ───────────────
+// GIS is loaded with async defer, so `google` may not exist yet when the user
+// clicks Connect immediately after page load. This polls until it's ready.
+function whenGisReady(callback, timeoutMs = 8000) {
+  const start = Date.now();
+  (function poll() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+      callback();
+      return;
+    }
+    if (Date.now() - start > timeoutMs) {
+      setSyncStatus('err', 'Google sign-in failed to load — try reloading the page');
+      document.getElementById('syncBtn').textContent = 'Connect';
+      return;
+    }
+    setTimeout(poll, 100);
+  })();
+}
+
 function startAuth() {
   const clientId = getClientId();
   if (!clientId) return;
@@ -1428,7 +1447,7 @@ function startAuth() {
   // No valid cached token — try silently first, never popup automatically
   const savedEmail = localStorage.getItem(EMAIL_KEY);
   setSyncStatus('busy', t('connecting'));
-  requestDriveTokenSilent(savedEmail || null);
+  whenGisReady(() => requestDriveTokenSilent(savedEmail || null));
 }
 
 // ── Token request ────────────────────────────────────────────
@@ -1597,7 +1616,7 @@ function signOut() {
 
 function handleSyncBtn() {
   if (accessToken) { setSyncStatus('busy', 'Syncing…'); saveToDrive(); }
-  else requestDriveTokenInteractive(localStorage.getItem(EMAIL_KEY) || null);
+  else whenGisReady(() => requestDriveTokenInteractive(localStorage.getItem(EMAIL_KEY) || null));
 }
 
 // ============================================================
