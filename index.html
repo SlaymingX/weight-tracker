@@ -523,6 +523,38 @@ input::placeholder{color:rgba(180,220,185,.3)}
   #weightChartSection{ margin:12px 16px 0; }
 }
 
+
+/* ======================================================
+   SETTINGS TAB
+   ====================================================== */
+.settings-section{margin:16px 16px 0;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.1);border-radius:16px;padding:18px}
+.settings-group{margin-bottom:22px}
+.settings-group:last-child{margin-bottom:0}
+.settings-group-title{font-family:'Syne',sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;opacity:.8;margin-bottom:12px}
+.settings-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.settings-row label{font-size:12px;color:rgba(180,220,185,.55);flex:1;min-width:0}
+.settings-row input{width:110px;flex:none;padding:9px 12px;font-size:14px}
+.btn-settings-save{background:linear-gradient(135deg,#3cb862,#2a9446);border:none;border-radius:8px;color:#fff;padding:9px 18px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+.settings-hint{font-size:10px;color:rgba(180,220,185,.3);margin-top:4px;line-height:1.5}
+
+/* calorie goal remaining bar */
+.cal-remaining{
+  display:none;
+  margin-top:10px;padding:9px 14px;
+  border-radius:10px;border:1px solid rgba(120,220,140,.15);
+  background:rgba(120,220,140,.05);
+  font-size:12px;color:rgba(180,220,185,.6);
+  display:flex;align-items:center;gap:8px;
+}
+.cal-remaining.hidden{display:none!important}
+.cal-remaining-bar{
+  height:4px;background:rgba(120,220,140,.12);border-radius:2px;margin-top:6px;overflow:hidden;
+}
+.cal-remaining-fill{height:100%;border-radius:2px;transition:width .4s,background .4s}
+.cal-remaining b{color:#d4edd8;font-size:13px}
+.cal-remaining.over{border-color:rgba(220,80,80,.25);background:rgba(220,80,80,.05)}
+.cal-remaining.over b{color:#e07070}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -558,6 +590,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
   <button class="tab-btn active" id="tab-tracker" onclick="switchTab('tracker')">📊 Tracker</button>
   <button class="tab-btn"        id="tab-food"    onclick="switchTab('food')">🍽 Food DB</button>
   <button class="tab-btn"        id="tab-history" onclick="switchTab('history')">📉 History</button>
+  <button class="tab-btn"        id="tab-settings" onclick="switchTab('settings')">⚙ Settings</button>
 </div>
 
 <!-- SYNC STATUS BAR -->
@@ -636,6 +669,16 @@ input::placeholder{color:rgba(180,220,185,.3)}
       </div>
       <button class="btn btn-amber" onclick="addCalories()">+ Add</button>
     </div>
+    <!-- calorie goal remaining -->
+    <div class="cal-remaining hidden" id="calRemaining">
+      <div style="flex:1">
+        <span id="calRemainingText"></span>
+        <div class="cal-remaining-bar">
+          <div class="cal-remaining-fill" id="calRemainingFill"></div>
+        </div>
+      </div>
+    </div>
+
     <ul class="entries" id="calEntries"></ul>
     <div class="divider" id="calChartWrap" style="display:none">
       <div class="sub-label">Calories Chart</div>
@@ -807,6 +850,25 @@ input::placeholder{color:rgba(180,220,185,.3)}
   </div>
 
 </div><!-- /panel-history -->
+
+<!-- ===================== TAB: SETTINGS ===================== -->
+<div class="tab-panel" id="panel-settings">
+  <div class="settings-section">
+
+    <!-- CALORIES GOAL -->
+    <div class="settings-group">
+      <div class="settings-group-title">Nutrition</div>
+      <div class="settings-row">
+        <label>Daily calorie goal (kcal)</label>
+        <input type="number" id="settingCalGoal" placeholder="e.g. 1300" min="100" max="9999" step="1"/>
+        <button class="btn-settings-save" onclick="saveCalGoal()">Save</button>
+      </div>
+      <div class="settings-hint">Shows how many kcal remain today in the Tracker tab.</div>
+    </div>
+
+  </div>
+</div><!-- /panel-settings -->
+
 </div><!-- /app-wrap -->
 
 
@@ -1120,7 +1182,8 @@ async function loadFromDrive() {
       if (!data.notes)   data.notes   = {};
       db = data;
       saveLocal();
-      autoActivateCurrentPeriod(); // must run after db is loaded from Drive
+      autoActivateCurrentPeriod();
+  renderSettings(); // must run after db is loaded from Drive
       render();
       setSyncStatus('ok', 'Synced with Drive', json.files[0].modifiedTime);
     } else {
@@ -1187,12 +1250,13 @@ function save() {
 //  TAB SWITCHING
 // ============================================================
 function switchTab(name) {
-  ['tracker','food','history'].forEach(t => {
+  ['tracker','food','history','settings'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.getElementById('panel-'+t).classList.toggle('active', t===name);
   });
-  if (name === 'food')    renderFoodDb();
-  if (name === 'history') { renderHistory(); renderCompareChart(); }
+  if (name === 'food')     renderFoodDb();
+  if (name === 'history')  { renderHistory(); renderCompareChart(); }
+  if (name === 'settings') renderSettings();
 }
 
 // ============================================================
@@ -1424,6 +1488,7 @@ function renderCalories() {
     document.getElementById('calTotal').style.color = 'rgba(180,220,185,.3)';
     document.getElementById('calUnit').style.color  = 'rgba(180,220,185,.3)';
     document.getElementById('calEntries').innerHTML = '';
+    document.getElementById('calRemaining').classList.add('hidden');
     return;
   }
   const entries = db.calories[date] || [];
@@ -1432,6 +1497,7 @@ function renderCalories() {
   document.getElementById('calTotal').textContent = total.toLocaleString();
   document.getElementById('calTotal').style.color = color;
   document.getElementById('calUnit').style.color  = color;
+  renderCalRemaining(total);
   const ul = document.getElementById('calEntries');
   ul.innerHTML = '';
   let fwd = 0;
@@ -2811,6 +2877,60 @@ function autoActivateCurrentPeriod() {
   localStorage.setItem('wt_active_period', activePeriodId);
   const dp = document.getElementById('datePicker');
   dp.value = currentPeriod.end ? currentPeriod.end : todayStr();
+}
+
+
+// ============================================================
+//  SETTINGS
+// ============================================================
+const CAL_GOAL_KEY = 'wt_cal_goal';
+
+function getCalGoal() {
+  const v = parseInt(localStorage.getItem(CAL_GOAL_KEY));
+  return isNaN(v) ? null : v;
+}
+
+function saveCalGoal() {
+  const inp = document.getElementById('settingCalGoal');
+  const val = parseInt(inp.value);
+  if (!val || val < 100 || val > 9999) { flash('Enter a valid goal (100–9999 kcal)', true); return; }
+  localStorage.setItem(CAL_GOAL_KEY, val);
+  flash('Calorie goal saved ✓');
+  render(); // update remaining bar immediately
+}
+
+function renderSettings() {
+  const goal = getCalGoal();
+  const inp  = document.getElementById('settingCalGoal');
+  if (goal) inp.value = goal;
+}
+
+function renderCalRemaining(total) {
+  const goal = getCalGoal();
+  const box  = document.getElementById('calRemaining');
+  if (!goal) { box.classList.add('hidden'); return; }
+
+  box.classList.remove('hidden');
+  const remaining = goal - total;
+  const pct       = Math.min(100, Math.round((total / goal) * 100));
+  const isOver    = remaining < 0;
+
+  box.classList.toggle('over', isOver);
+
+  const text = document.getElementById('calRemainingText');
+  if (isOver) {
+    text.innerHTML = `<b>${Math.abs(remaining).toLocaleString()} kcal over</b> the ${goal.toLocaleString()} goal`;
+  } else if (remaining === 0) {
+    text.innerHTML = `<b>Goal reached!</b> ${goal.toLocaleString()} kcal`;
+  } else {
+    text.innerHTML = `<b>${remaining.toLocaleString()} kcal remaining</b> of ${goal.toLocaleString()}`;
+  }
+
+  const fill = document.getElementById('calRemainingFill');
+  fill.style.width = pct + '%';
+  fill.style.background = isOver
+    ? '#e07070'
+    : pct > 85 ? '#f0c060' : '#78dc8c';
 }
 
 // ============================================================
