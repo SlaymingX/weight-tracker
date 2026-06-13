@@ -1028,14 +1028,16 @@ function loadLocal() {
   try {
     const d = JSON.parse(localStorage.getItem(DATA_KEY));
     if (!d) return freshDb();
-    if (!d.food)    d.food    = { categories: [], items: [] };
-    if (!d.periods) d.periods = [];
-    if (!d.notes)   d.notes   = {};
+    if (!d.food)     d.food     = { categories: [], items: [] };
+    if (!d.periods)  d.periods  = [];
+    if (!d.notes)    d.notes    = {};
+    if (!d.settings) d.settings = { height: null, age: null, sex: 'm', calGoal: null };
     return d;
   } catch { return freshDb(); }
 }
 function freshDb() {
-  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {} }; // notes: {date: string}, periods: [{id,name,start,end|null,startW,endW|null,current,done}]
+  // settings: { height: cm|null, age: years|null, sex: 'm'|'f', calGoal: kcal|null }
+  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {}, settings: { height: null, age: null, sex: 'm', calGoal: null } };
 }
 function saveLocal() {
   try { localStorage.setItem(DATA_KEY, JSON.stringify(db)); } catch {}
@@ -1290,9 +1292,10 @@ async function loadFromDrive() {
       document.getElementById('signOutBtn').style.display = 'block';
       const cr   = await fetch(`${DRIVE_API}/files/${driveFileId}?alt=media`, { headers: { Authorization: 'Bearer ' + accessToken } });
       const data = await cr.json();
-      if (!data.food)    data.food    = { categories: [], items: [] };
-      if (!data.periods) data.periods = [];
-      if (!data.notes)   data.notes   = {};
+      if (!data.food)     data.food     = { categories: [], items: [] };
+      if (!data.periods)  data.periods  = [];
+      if (!data.notes)    data.notes    = {};
+      if (!data.settings) data.settings = { height: null, age: null, sex: 'm', calGoal: null };
       db = data;
       saveLocal();
       autoActivateCurrentPeriod();
@@ -3050,9 +3053,6 @@ function startTimer() {
 // ============================================================
 //  BMI
 // ============================================================
-const HEIGHT_KEY = 'wt_height';
-const AGE_KEY    = 'wt_age';
-const SEX_KEY    = 'wt_sex';
 
 // BMI strip range: 10–50 kg/m²
 const BMI_MIN = 10, BMI_MAX = 50;
@@ -3078,7 +3078,7 @@ function bmiToPercent(bmi) {
 function renderBmi(startWeight, curWeight) {
   const wrap      = document.getElementById('bmiWrap');
   const hint      = document.getElementById('bmiSetupHint');
-  const heightCm  = parseFloat(localStorage.getItem(HEIGHT_KEY));
+  const heightCm  = parseFloat(ensureSettings().height);
 
   if (!heightCm) {
     wrap.style.display = 'none';
@@ -3117,33 +3117,37 @@ function renderBmi(startWeight, curWeight) {
 // ============================================================
 //  SETTINGS
 // ============================================================
-const CAL_GOAL_KEY = 'wt_cal_goal';
+// Settings live in db.settings — synced to Google Drive like everything else.
+// localStorage (via saveLocal/save) acts only as an instant-load cache.
+
+function ensureSettings() {
+  if (!db.settings) db.settings = { height: null, age: null, sex: 'm', calGoal: null };
+  return db.settings;
+}
 
 function getCalGoal() {
-  const v = parseInt(localStorage.getItem(CAL_GOAL_KEY));
-  return isNaN(v) ? null : v;
+  const v = ensureSettings().calGoal;
+  return (v && !isNaN(v)) ? v : null;
 }
 
 function saveCalGoal() {
   const inp = document.getElementById('settingCalGoal');
   const val = parseInt(inp.value);
   if (!val || val < 100 || val > 9999) { flash('Enter a valid goal (100–9999 kcal)', true); return; }
-  localStorage.setItem(CAL_GOAL_KEY, val);
+  ensureSettings().calGoal = val;
+  save(); // persist locally + sync to Drive
   flash('Calorie goal saved ✓');
   render(); // update remaining bar immediately
 }
 
 function renderSettings() {
-  const goal = getCalGoal();
-  const inp  = document.getElementById('settingCalGoal');
-  if (goal) inp.value = goal;
+  const s   = ensureSettings();
+  const inp = document.getElementById('settingCalGoal');
+  if (s.calGoal) inp.value = s.calGoal;
 
-  const h = localStorage.getItem(HEIGHT_KEY);
-  const a = localStorage.getItem(AGE_KEY);
-  const s = localStorage.getItem(SEX_KEY) || 'm';
-  if (h) document.getElementById('settingHeight').value = h;
-  if (a) document.getElementById('settingAge').value = a;
-  document.getElementById('settingSex').value = s;
+  if (s.height) document.getElementById('settingHeight').value = s.height;
+  if (s.age)    document.getElementById('settingAge').value    = s.age;
+  document.getElementById('settingSex').value = s.sex || 'm';
 }
 
 function saveBodyProfile() {
@@ -3151,9 +3155,11 @@ function saveBodyProfile() {
   const a = parseInt(document.getElementById('settingAge').value);
   const s = document.getElementById('settingSex').value;
   if (!h || h < 100 || h > 250) { flash('Enter a valid height (100–250 cm)', true); return; }
-  localStorage.setItem(HEIGHT_KEY, h);
-  if (a && a >= 10 && a <= 120) localStorage.setItem(AGE_KEY, a);
-  localStorage.setItem(SEX_KEY, s);
+  const settings = ensureSettings();
+  settings.height = h;
+  settings.age    = (a && a >= 10 && a <= 120) ? a : null;
+  settings.sex    = s;
+  save(); // persist locally + sync to Drive
   flash('Body profile saved ✓');
   renderStats(); // re-render BMI strip
 }
