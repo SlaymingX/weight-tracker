@@ -570,6 +570,42 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .timer-phase-day  .timer-value{color:#78dc8c}
 .timer-phase-night .timer-value{color:#f0c060}
 
+
+/* ---- BMI STRIP ---- */
+.bmi-wrap{margin-top:14px;padding:12px 14px;background:rgba(255,255,255,.025);border:1px solid rgba(120,220,140,.08);border-radius:12px}
+.bmi-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.bmi-title{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(120,220,140,.5)}
+.bmi-values{display:flex;gap:14px}
+.bmi-val-item{text-align:right}
+.bmi-val-label{font-size:9px;color:rgba(180,220,185,.35);letter-spacing:.5px}
+.bmi-val-num{font-family:'Syne',sans-serif;font-size:15px;font-weight:700}
+.bmi-strip-wrap{position:relative;margin-bottom:6px}
+.bmi-strip{
+  height:10px;border-radius:5px;width:100%;
+  background:linear-gradient(to right,
+    #4fc3f7 0%,        /* Underweight <18.5 */
+    #4fc3f7 18.5%,
+    #78dc8c 18.5%,     /* Normal 18.5-25 */
+    #78dc8c 25%,
+    #f0c060 25%,       /* Overweight 25-30 */
+    #f0c060 30%,
+    #e07070 30%,       /* Obese 30-40 */
+    #e07070 100%
+  );
+  /* Scale: strip represents BMI 10–50, so we map % accordingly */
+}
+.bmi-marker{
+  position:absolute;top:-3px;
+  width:4px;height:16px;border-radius:2px;
+  transform:translateX(-50%);
+  transition:left .4s;
+}
+.bmi-marker.start{background:#9ecba5;opacity:.7}
+.bmi-marker.current{background:#fff;box-shadow:0 0 6px rgba(255,255,255,.5)}
+.bmi-zones{display:flex;justify-content:space-between;margin-top:4px}
+.bmi-zone-l{font-size:8px;color:rgba(180,220,185,.25);letter-spacing:.3px}
+.bmi-setup-hint{font-size:10px;color:rgba(180,220,185,.25);text-align:center;padding:4px 0}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -734,8 +770,36 @@ input::placeholder{color:rgba(180,220,185,.3)}
     <div class="stats-grid" id="statsGrid" style="display:none">
       <div class="stat"><div class="stat-l">Starting</div><div class="stat-v muted" id="sStart"></div></div>
       <div class="stat"><div class="stat-l">Change</div><div class="stat-v" id="sChange"></div></div>
-      <div class="stat"><div class="stat-l">Lowest</div><div class="stat-v" id="sLow"></div></div>
-      <div class="stat"><div class="stat-l">Entries</div><div class="stat-v muted" id="sCount"></div></div>
+    </div>
+    <!-- BMI STRIP -->
+    <div class="bmi-wrap" id="bmiWrap" style="display:none">
+      <div class="bmi-top">
+        <span class="bmi-title">BMI</span>
+        <div class="bmi-values">
+          <div class="bmi-val-item">
+            <div class="bmi-val-label">Start</div>
+            <div class="bmi-val-num" id="bmiStartVal" style="color:#9ecba5">—</div>
+          </div>
+          <div class="bmi-val-item">
+            <div class="bmi-val-label">Now</div>
+            <div class="bmi-val-num" id="bmiCurVal" style="color:#fff">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="bmi-strip-wrap">
+        <div class="bmi-strip"></div>
+        <div class="bmi-marker start"   id="bmiMarkerStart"></div>
+        <div class="bmi-marker current" id="bmiMarkerCur"></div>
+      </div>
+      <div class="bmi-zones">
+        <span class="bmi-zone-l">Under</span>
+        <span class="bmi-zone-l">Normal</span>
+        <span class="bmi-zone-l">Over</span>
+        <span class="bmi-zone-l">Obese</span>
+      </div>
+    </div>
+    <div class="bmi-setup-hint" id="bmiSetupHint" style="display:none">
+      Set height in ⚙ Settings to see BMI
     </div>
     <!-- GOAL BOX -->
     <div class="goal-box" id="goalBox">
@@ -881,6 +945,28 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <!-- ===================== TAB: SETTINGS ===================== -->
 <div class="tab-panel" id="panel-settings">
   <div class="settings-section">
+
+    <!-- BODY PROFILE -->
+    <div class="settings-group">
+      <div class="settings-group-title">Body Profile</div>
+      <div class="settings-row">
+        <label>Height (cm)</label>
+        <input type="number" id="settingHeight" placeholder="e.g. 178" min="100" max="250" step="1"/>
+        <button class="btn-settings-save" onclick="saveBodyProfile()">Save</button>
+      </div>
+      <div class="settings-row">
+        <label>Age</label>
+        <input type="number" id="settingAge" placeholder="e.g. 25" min="10" max="120" step="1"/>
+      </div>
+      <div class="settings-row">
+        <label>Sex</label>
+        <select id="settingSex" style="background:rgba(120,220,140,.06);border:1px solid rgba(120,220,140,.22);border-radius:10px;color:#d4edd8;padding:9px 12px;font-family:'DM Mono',monospace;font-size:13px;outline:none;width:110px;flex:none">
+          <option value="m">Male</option>
+          <option value="f">Female</option>
+        </select>
+      </div>
+      <div class="settings-hint">Used for BMI display in the Tracker tab.</div>
+    </div>
 
     <!-- CALORIES GOAL -->
     <div class="settings-group">
@@ -1586,17 +1672,15 @@ function renderStats() {
   const p = getActivePeriod();
   const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b));
   const grid    = document.getElementById('statsGrid');
-  if (entries.length < 2) { grid.style.display='none'; return; }
+  if (entries.length < 2) { grid.style.display='none'; renderBmi(null, null); return; }
   grid.style.display='grid';
   const first = parseFloat(entries[0][1]), last = parseFloat(entries[entries.length-1][1]);
   const diff  = (last - first).toFixed(1);
-  const minW  = Math.min(...entries.map(e => parseFloat(e[1])));
   document.getElementById('sStart').textContent = first + ' kg';
   const sChange = document.getElementById('sChange');
   sChange.textContent = (diff > 0 ? '+' : '') + diff + ' kg';
   sChange.className = 'stat-v ' + (diff < 0 ? 'red' : 'amber');
-  document.getElementById('sLow').textContent  = minW + ' kg';
-  document.getElementById('sCount').textContent = entries.length;
+  renderBmi(first, last);
 }
 function renderWeightLog() {
   const wrap = document.getElementById('logWrap');
@@ -2962,6 +3046,74 @@ function startTimer() {
   timerInterval = setInterval(updateTimer, 1000);
 }
 
+
+// ============================================================
+//  BMI
+// ============================================================
+const HEIGHT_KEY = 'wt_height';
+const AGE_KEY    = 'wt_age';
+const SEX_KEY    = 'wt_sex';
+
+// BMI strip range: 10–50 kg/m²
+const BMI_MIN = 10, BMI_MAX = 50;
+
+function calcBmi(weightKg, heightCm) {
+  if (!weightKg || !heightCm) return null;
+  const h = heightCm / 100;
+  return Math.round((weightKg / (h * h)) * 10) / 10;
+}
+
+function bmiCategory(bmi) {
+  if (bmi < 18.5) return { label: 'Underweight', color: '#4fc3f7' };
+  if (bmi < 25)   return { label: 'Normal',      color: '#78dc8c' };
+  if (bmi < 30)   return { label: 'Overweight',  color: '#f0c060' };
+  return             { label: 'Obese',        color: '#e07070' };
+}
+
+function bmiToPercent(bmi) {
+  // Map BMI 10–50 to 0–100%
+  return Math.min(100, Math.max(0, ((bmi - BMI_MIN) / (BMI_MAX - BMI_MIN)) * 100));
+}
+
+function renderBmi(startWeight, curWeight) {
+  const wrap      = document.getElementById('bmiWrap');
+  const hint      = document.getElementById('bmiSetupHint');
+  const heightCm  = parseFloat(localStorage.getItem(HEIGHT_KEY));
+
+  if (!heightCm) {
+    wrap.style.display = 'none';
+    // Only show hint if we have data to show
+    hint.style.display = startWeight ? 'block' : 'none';
+    return;
+  }
+
+  const bmiStart = startWeight ? calcBmi(startWeight, heightCm) : null;
+  const bmiCur   = curWeight   ? calcBmi(curWeight,   heightCm) : null;
+
+  if (!bmiCur) { wrap.style.display = 'none'; hint.style.display = 'none'; return; }
+
+  hint.style.display = 'none';
+  wrap.style.display = 'block';
+
+  const catCur = bmiCategory(bmiCur);
+
+  document.getElementById('bmiCurVal').textContent = bmiCur;
+  document.getElementById('bmiCurVal').style.color  = catCur.color;
+  document.getElementById('bmiMarkerCur').style.left = bmiToPercent(bmiCur) + '%';
+  document.getElementById('bmiMarkerCur').style.background = catCur.color;
+
+  if (bmiStart) {
+    const catStart = bmiCategory(bmiStart);
+    document.getElementById('bmiStartVal').textContent = bmiStart;
+    document.getElementById('bmiStartVal').style.color  = catStart.color;
+    document.getElementById('bmiMarkerStart').style.left    = bmiToPercent(bmiStart) + '%';
+    document.getElementById('bmiMarkerStart').style.display = 'block';
+  } else {
+    document.getElementById('bmiStartVal').textContent = '—';
+    document.getElementById('bmiMarkerStart').style.display = 'none';
+  }
+}
+
 // ============================================================
 //  SETTINGS
 // ============================================================
@@ -2985,6 +3137,25 @@ function renderSettings() {
   const goal = getCalGoal();
   const inp  = document.getElementById('settingCalGoal');
   if (goal) inp.value = goal;
+
+  const h = localStorage.getItem(HEIGHT_KEY);
+  const a = localStorage.getItem(AGE_KEY);
+  const s = localStorage.getItem(SEX_KEY) || 'm';
+  if (h) document.getElementById('settingHeight').value = h;
+  if (a) document.getElementById('settingAge').value = a;
+  document.getElementById('settingSex').value = s;
+}
+
+function saveBodyProfile() {
+  const h = parseInt(document.getElementById('settingHeight').value);
+  const a = parseInt(document.getElementById('settingAge').value);
+  const s = document.getElementById('settingSex').value;
+  if (!h || h < 100 || h > 250) { flash('Enter a valid height (100–250 cm)', true); return; }
+  localStorage.setItem(HEIGHT_KEY, h);
+  if (a && a >= 10 && a <= 120) localStorage.setItem(AGE_KEY, a);
+  localStorage.setItem(SEX_KEY, s);
+  flash('Body profile saved ✓');
+  renderStats(); // re-render BMI strip
 }
 
 function renderCalRemaining(total) {
