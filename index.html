@@ -555,6 +555,21 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .cal-remaining.over{border-color:rgba(220,80,80,.25);background:rgba(220,80,80,.05)}
 .cal-remaining.over b{color:#e07070}
 
+
+/* ---- TOP ROW: timer + date ---- */
+.top-row{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:16px 16px 0}
+.top-row > .section{margin:0}
+.top-row > .section:first-child{border-radius:16px 0 0 16px;border-right:none;margin-right:0}
+.top-row > .section:last-child{border-radius:0 16px 16px 0;margin-left:0}
+
+/* timer box */
+.timer-label{font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;opacity:.7;margin-bottom:10px}
+.timer-value{font-family:'Syne',sans-serif;font-size:42px;font-weight:800;line-height:1;color:#e8f5ea}
+.timer-value span{font-size:22px;opacity:.6;margin-left:2px}
+.timer-sub{font-size:11px;color:rgba(180,220,185,.4);margin-top:6px;letter-spacing:.3px}
+.timer-phase-day  .timer-value{color:#78dc8c}
+.timer-phase-night .timer-value{color:#f0c060}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -634,17 +649,29 @@ input::placeholder{color:rgba(180,220,185,.3)}
     </div>
   </div>
 
-  <!-- DATE -->
-  <div class="section">
-    <div class="sec-label">Selected Date</div>
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="shiftDay(-1)" title="Previous day">&#8249;</button>
-      <div class="date-nav-center">
-        <input type="date" id="datePicker"/>
-      </div>
-      <button class="date-nav-btn" onclick="shiftDay(1)" title="Next day">&#8250;</button>
-      <button class="btn-ghost btn-today" onclick="setToday()">Today</button>
+  <!-- TOP ROW: timer + date -->
+  <div class="top-row">
+
+    <!-- TIMER -->
+    <div class="section" id="timerBox">
+      <div class="timer-label" id="timerLabel">Until 8 PM</div>
+      <div class="timer-value" id="timerValue">—<span>h</span></div>
+      <div class="timer-sub"  id="timerSub"></div>
     </div>
+
+    <!-- DATE -->
+    <div class="section">
+      <div class="sec-label">Selected Date</div>
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="shiftDay(-1)" title="Previous day">&#8249;</button>
+        <div class="date-nav-center">
+          <input type="date" id="datePicker"/>
+        </div>
+        <button class="date-nav-btn" onclick="shiftDay(1)" title="Next day">&#8250;</button>
+        <button class="btn-ghost btn-today" onclick="setToday()">Today</button>
+      </div>
+    </div>
+
   </div>
 
   <div class="tracker-cols">
@@ -2880,6 +2907,61 @@ function autoActivateCurrentPeriod() {
 }
 
 
+
+// ============================================================
+//  COUNTDOWN TIMER  (until 8 PM or until 4 AM)
+// ============================================================
+let timerInterval = null;
+
+function updateTimer() {
+  const now   = new Date();
+  const h     = now.getHours();
+  const m     = now.getMinutes();
+  const s     = now.getSeconds();
+
+  const box   = document.getElementById('timerBox');
+  const label = document.getElementById('timerLabel');
+  const val   = document.getElementById('timerValue');
+  const sub   = document.getElementById('timerSub');
+
+  let targetH, phase;
+
+  if (h >= 20 || h < 4) {
+    // Night phase — count down to 04:00
+    targetH = 4;
+    phase   = 'night';
+    label.textContent = 'Until 4 AM';
+  } else {
+    // Day phase — count down to 20:00
+    targetH = 20;
+    phase   = 'day';
+    label.textContent = 'Until 8 PM';
+  }
+
+  box.className = 'section timer-phase-' + phase;
+
+  // Seconds until target
+  let target = new Date(now);
+  target.setHours(targetH, 0, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+
+  const diffS   = Math.round((target - now) / 1000);
+  const remH    = Math.floor(diffS / 3600);
+  const remM    = Math.floor((diffS % 3600) / 60);
+  const remS    = diffS % 60;
+
+  val.innerHTML = `${remH}<span>h</span> ${String(remM).padStart(2,'0')}<span>m</span>`;
+  sub.textContent = phase === 'night'
+    ? 'Late night — time to rest 🌙'
+    : `${String(remH).padStart(2,'0')}:${String(remM).padStart(2,'0')}:${String(remS).padStart(2,'0')} remaining`;
+}
+
+function startTimer() {
+  updateTimer();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
 // ============================================================
 //  SETTINGS
 // ============================================================
@@ -2990,6 +3072,7 @@ function clearViewingPeriod() {
   document.getElementById('datePicker').addEventListener('change', render);
   checkLateBanner();
   setInterval(checkLateBanner, 60000); // re-check every minute
+  startTimer();
   document.getElementById('weightInput').addEventListener('keydown', e => { if(e.key==='Enter') saveWeight(); });
 
   autoActivateCurrentPeriod();
