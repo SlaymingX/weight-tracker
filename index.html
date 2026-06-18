@@ -16,13 +16,13 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{min-height:100vh;background:#080b10}
+html{min-height:100vh;background:#080b10;overflow-x:hidden}
 @media(min-width:900px){
   html{ font-size:118%; }
 }
 body{
   color:#d4edd8;font-family:'DM Mono',monospace;padding-bottom:80px;
-  min-height:100vh;
+  min-height:100vh;overflow-x:hidden;
   background:
     radial-gradient(ellipse 70% 55% at 12%  8%,  rgba(20,90,45,.6)  0%, transparent 55%),
     radial-gradient(ellipse 50% 45% at 88% 85%,  rgba(10,55,30,.55) 0%, transparent 50%),
@@ -93,17 +93,6 @@ body{
 .btn-sync:hover{background:rgba(120,220,140,.08)}
 .btn-sync:disabled{opacity:.4;cursor:default}
 
-/* ---- SETUP PANEL ---- */
-.setup-panel{margin:14px 16px 0;padding:18px;background:rgba(120,220,140,.04);border:1px solid rgba(120,220,140,.2);border-radius:16px}
-.setup-panel h2{font-family:'Syne',sans-serif;font-size:16px;color:#78dc8c;margin-bottom:4px}
-.setup-panel p{font-size:12px;color:rgba(180,220,185,.55);margin-bottom:14px;line-height:1.6}
-.setup-steps{margin-bottom:16px;counter-reset:step;list-style:none}
-.setup-steps li{font-size:11px;color:rgba(180,220,185,.5);margin-bottom:6px;padding-left:16px;position:relative;line-height:1.5}
-.setup-steps li::before{content:counter(step);counter-increment:step;position:absolute;left:0;color:#78dc8c;font-weight:700}
-.setup-input{width:100%;background:rgba(120,220,140,.06);border:1px solid rgba(120,220,140,.22);border-radius:10px;color:#d4edd8;padding:11px 14px;font-family:'DM Mono',monospace;font-size:13px;outline:none;margin-bottom:10px}
-.setup-input:focus{border-color:#78dc8c}
-.setup-input::placeholder{color:rgba(180,220,185,.3)}
-.btn-connect{width:100%;background:linear-gradient(135deg,#3cb862,#2a9446);border:none;border-radius:10px;color:#fff;padding:13px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
 
 /* ---- SECTIONS ---- */
 .section{margin:16px 16px 0;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.1);border-radius:16px;padding:18px;position:relative}
@@ -557,10 +546,18 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
 
 /* ---- TOP ROW: timer + date ---- */
-.top-row{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:16px 16px 0}
-.top-row > .section{margin:0}
-.top-row > .section:first-child{border-radius:16px 0 0 16px;border-right:none;margin-right:0}
-.top-row > .section:last-child{border-radius:0 16px 16px 0;margin-left:0}
+/* Mobile: stack timer and date vertically */
+.top-row{display:flex;flex-direction:column;gap:0;margin:16px 16px 0}
+.top-row > .section{margin:0;border-radius:0}
+.top-row > .section:first-child{border-radius:16px 16px 0 0;border-bottom:none}
+.top-row > .section:last-child{border-radius:0 0 16px 16px}
+
+/* Desktop: side by side */
+@media(min-width:900px){
+  .top-row{display:grid;grid-template-columns:1fr 1fr;flex-direction:unset}
+  .top-row > .section:first-child{border-radius:16px 0 0 16px;border-right:none;border-bottom:1px solid rgba(120,220,140,.1)}
+  .top-row > .section:last-child{border-radius:0 16px 16px 0}
+}
 
 /* timer box */
 .timer-label{font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;opacity:.7;margin-bottom:10px}
@@ -606,6 +603,19 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .bmi-zone-l{font-size:8px;color:rgba(180,220,185,.25);letter-spacing:.3px}
 .bmi-setup-hint{font-size:10px;color:rgba(180,220,185,.25);text-align:center;padding:4px 0}
 
+
+/* ---- BURN MODE ---- */
+.btn-burn{background:linear-gradient(135deg,#3a6bc4,#2050a0)}
+.btn-mode-toggle{
+  background:none;border:1px solid rgba(120,220,140,.25);color:rgba(120,220,140,.6);
+  border-radius:9px;padding:0 13px;font-family:'DM Mono',monospace;font-size:18px;
+  cursor:pointer;height:100%;transition:all .15s;flex-shrink:0;line-height:1;
+}
+.btn-mode-toggle:hover{background:rgba(120,220,140,.08);color:#78dc8c}
+.btn-mode-toggle.burn-mode{border-color:rgba(80,140,220,.35);color:rgba(100,160,240,.7)}
+.btn-mode-toggle.burn-mode:hover{background:rgba(80,140,220,.1);color:#6ab0f0}
+.entry-val.burn{color:#6ab0f0 !important}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -648,23 +658,11 @@ input::placeholder{color:rgba(180,220,185,.3)}
 <div class="sync-bar" id="syncBar">
   <div class="sync-dot" id="syncDot"></div>
   <span class="sync-label" id="syncLabel">Not connected to Google Drive</span>
-  <button class="btn-sync" id="syncBtn" onclick="handleSyncBtn()">Connect</button>
-  <button class="btn-sync" id="signOutBtn" onclick="signOut()" style="display:none;border-color:rgba(220,80,80,.3);color:rgba(220,100,100,.7)">Sign out</button>
+  <a class="btn-sync" id="loginBtn" href="/api/auth/login" style="text-decoration:none;display:none">Sign in</a>
+  <button class="btn-sync" id="syncBtn" onclick="handleSyncBtn()" style="display:none">↻ Sync</button>
+  <a class="btn-sync" href="/api/auth/logout" style="text-decoration:none;border-color:rgba(220,80,80,.3);color:rgba(220,100,100,.7);display:none" id="signOutBtn">Sign out</a>
 </div>
 
-<!-- SETUP PANEL -->
-<div class="setup-panel" id="setupPanel">
-  <h2>📁 Google Drive Sync</h2>
-  <p>Your data will be saved to <b>weight-tracker-data.json</b> in your Google Drive — accessible from any device.</p>
-  <ol class="setup-steps">
-    <li>Go to <b>console.cloud.google.com</b> and create a project.</li>
-    <li>Enable <b>Google Drive API</b>.</li>
-    <li>Create an <b>OAuth 2.0 Client ID</b> (Web application).<br>Add this page's URL as an Authorized JavaScript origin.</li>
-    <li>Copy the <b>Client ID</b> and paste it below.</li>
-  </ol>
-  <input class="setup-input" id="clientIdInput" placeholder="Paste your Google OAuth Client ID here…" autocomplete="off"/>
-  <button class="btn-connect" onclick="saveClientId()">Save & Connect</button>
-</div>
 
 <!-- ===================== TAB: TRACKER ===================== -->
 <div class="tab-panel active" id="panel-tracker">
@@ -730,7 +728,8 @@ input::placeholder{color:rgba(180,220,185,.3)}
         />
         <div class="suggestions" id="sugBox"></div>
       </div>
-      <button class="btn btn-amber" onclick="addCalories()">+ Add</button>
+      <button class="btn-mode-toggle" id="calModeBtn" onclick="toggleCalMode()" title="Switch between adding and burning calories">+</button>
+      <button class="btn btn-amber" id="calAddBtn" onclick="addCalories()">+ Add</button>
     </div>
     <!-- calorie goal remaining -->
     <div class="cal-remaining hidden" id="calRemaining">
@@ -985,15 +984,11 @@ input::placeholder{color:rgba(180,220,185,.3)}
 </div><!-- /app-wrap -->
 
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-
 <script>
 // ============================================================
 //  CONFIG
 // ============================================================
 const DATA_KEY   = 'wt_data_v1';
-const CLIENT_KEY = 'wt_goog_client_id';
 const FILE_KEY   = 'wt_drive_file_id';
 const HINT_KEY   = 'wt_goog_hint';
 const EMAIL_KEY  = 'wt_goog_email';   // stores confirmed email for One Tap hint
@@ -1013,7 +1008,6 @@ let accessToken  = null;
 let driveFileId  = localStorage.getItem(FILE_KEY) || null;
 let isSyncing    = false;
 let tokenExpiry  = 0;      // ms timestamp when current accessToken expires
-let tokenRefreshTimer = null;
 // suggestion state
 let sugItems     = [];   // current visible suggestions
 let sugFocusIdx  = -1;   // keyboard focus index
@@ -1028,253 +1022,126 @@ function loadLocal() {
   try {
     const d = JSON.parse(localStorage.getItem(DATA_KEY));
     if (!d) return freshDb();
-    if (!d.food)     d.food     = { categories: [], items: [] };
-    if (!d.periods)  d.periods  = [];
-    if (!d.notes)    d.notes    = {};
-    if (!d.settings) d.settings = { height: null, age: null, sex: 'm', calGoal: null };
+    if (!d.food)    d.food    = { categories: [], items: [] };
+    if (!d.periods) d.periods = [];
+    if (!d.notes)   d.notes   = {};
     return d;
   } catch { return freshDb(); }
 }
 function freshDb() {
-  // settings: { height: cm|null, age: years|null, sex: 'm'|'f', calGoal: kcal|null }
-  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {}, settings: { height: null, age: null, sex: 'm', calGoal: null } };
+  return { weights: {}, calories: {}, food: { categories: [], items: [] }, periods: [], notes: {} }; // notes: {date: string}, periods: [{id,name,start,end|null,startW,endW|null,current,done}]
 }
 function saveLocal() {
   try { localStorage.setItem(DATA_KEY, JSON.stringify(db)); } catch {}
 }
 
 // ============================================================
-//  GOOGLE AUTH  — One Tap silent auto-login + token client
-//
-//  Flow:
-//   1. On page load: google.accounts.id.initialize() with auto_select:true
-//      Google silently checks its own session cookie and calls onOneTapCredential
-//      if the user already approved this app — NO popup shown.
-//   2. onOneTapCredential receives a JWT id_token. We extract the email/sub
-//      and use it as the hint for initTokenClient with prompt:'none' to get
-//      a Drive access token also silently.
-//   3. If One Tap has nothing (first visit, revoked, or 3rd-party cookies
-//      blocked), we fall back to the explicit token client (account chooser).
-//   4. Access token is refreshed automatically 5 min before expiry.
+//  AUTH  (server-side OAuth via /api/auth/* endpoints)
 // ============================================================
-function getClientId() { return localStorage.getItem(CLIENT_KEY) || ''; }
+// The refresh token lives in an httpOnly cookie managed by the server.
+// The frontend only ever sees short-lived access tokens, never the refresh token.
+// Flow:
+//   1. On load: try GET /api/auth/refresh — if cookie exists, get a fresh token silently
+//   2. If 401: show "Sign in" button which links to /api/auth/login (server redirect)
+//   3. After Google consent: server sets cookie, redirects to /#access_token=...&expires_at=...
+//   4. Frontend reads fragment, stores token in memory + localStorage for fast reloads
+//   5. Token auto-refreshes 5 min before expiry via /api/auth/refresh
 
-function saveClientId() {
-  const val = document.getElementById('clientIdInput').value.trim();
-  if (!val || !val.includes('.apps.googleusercontent.com')) {
-    flash('Please paste a valid Google Client ID', true); return;
-  }
-  localStorage.setItem(CLIENT_KEY, val);
-  document.getElementById('setupPanel').style.display = 'none';
-  startAuth();
-}
-
-// ── AUTH — token cached in localStorage, popup only when token expired ───────
-//
-//  localStorage persists across tab closes, browser restarts, and PWA kills.
-//  The account chooser appears only when the token has truly expired (~1 hour
-//  after last login). On return visits the stored token is reused directly.
-//
 const TOKEN_LS_KEY  = 'wt_token';
 const EXPIRY_LS_KEY = 'wt_token_expiry';
-let authTimeoutTimer = null;
+let tokenRefreshTimer = null;
 
 function startAuth() {
-  const clientId = getClientId();
-  if (!clientId) return;
+  // Check fragment first (just came back from OAuth callback)
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    const params     = new URLSearchParams(hash.slice(1));
+    const token      = params.get('access_token');
+    const expiresAt  = parseInt(params.get('expires_at') || '0');
+    if (token) {
+      window.history.replaceState(null, '', '/'); // clean the URL
+      onTokenSuccess(token, expiresAt);
+      return;
+    }
+  }
 
-  // Check localStorage for a still-valid token
-  // localStorage persists across tab closes, app restarts, and PWA kills
+  // Check localStorage cache (survives page reloads)
   const cachedToken  = localStorage.getItem(TOKEN_LS_KEY);
   const cachedExpiry = parseInt(localStorage.getItem(EXPIRY_LS_KEY) || '0');
-  const now          = Date.now();
-
-  if (cachedToken && cachedExpiry > now + 60000) {
-    // Token valid for at least 1 more minute — use it directly, no popup
-    accessToken = cachedToken;
-    const remainingMs = cachedExpiry - now - 300000; // refresh 5 min before expiry
-    clearTimeout(tokenRefreshTimer);
-    if (remainingMs > 0) {
-      tokenRefreshTimer = setTimeout(() => refreshToken(), remainingMs);
-    }
-    setSyncStatus('busy', 'Loading from Drive…');
-    loadFromDrive();
+  if (cachedToken && cachedExpiry > Date.now() + 60000) {
+    onTokenSuccess(cachedToken, cachedExpiry, /*skipDriveLoad=*/false, /*fromCache=*/true);
     return;
   }
 
-  // No valid cached token — try silently first, never popup automatically
-  const savedEmail = localStorage.getItem(EMAIL_KEY);
+  // Try silent refresh via server cookie
   setSyncStatus('busy', 'Connecting…');
-  requestDriveTokenSilent(savedEmail || null);
+  silentRefresh();
 }
 
-// ── Token request ────────────────────────────────────────────
-//
-//  Two modes:
-//  - silent (default): prompt:'none', no popup ever.
-//    If it fails, shows a quiet "Connect" button — user decides when to login.
-//  - interactive (only when user taps Connect or Sign in): shows popup.
-//
-//  This means the popup NEVER appears automatically — only on user action.
-//  The token is cached in localStorage for ~1 hour. When it expires the
-//  sync bar shows "Session expired" with a Connect button; user taps once.
-//
-function requestDriveTokenSilent(hint) {
-  const clientId = getClientId();
-  if (!clientId) return;
-
-  clearTimeout(authTimeoutTimer);
-
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope:     SCOPES,
-    hint:      hint || undefined,
-    prompt:    'none',
-    callback:  (tr) => {
-      clearTimeout(authTimeoutTimer);
-      if (tr.error) {
-        // Silent failed — do NOT open popup automatically.
-        // Just show a quiet connect button.
-        setSyncStatus('err', 'Tap Connect to sign in');
-        document.getElementById('syncBtn').textContent = 'Connect';
-        return;
-      }
-      onTokenSuccess(tr, hint);
-    },
-  });
-
-  // If GIS doesn't respond in 5 s (script not loaded yet, etc.) — show Connect
-  authTimeoutTimer = setTimeout(() => {
-    if (!accessToken) {
-      setSyncStatus('err', 'Tap Connect to sign in');
-      document.getElementById('syncBtn').textContent = 'Connect';
-    }
-  }, 5000);
-
-  client.requestAccessToken({ prompt: 'none' });
-}
-
-function requestDriveTokenInteractive(hint) {
-  const clientId = getClientId();
-  if (!clientId) return;
-
-  clearTimeout(authTimeoutTimer);
-  setSyncStatus('busy', 'Connecting…');
-
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope:     SCOPES,
-    hint:      hint || undefined,
-    // No prompt override — GIS shows chooser only if truly needed;
-    // with login_hint and existing consent it auto-selects silently
-    callback:  (tr) => {
-      clearTimeout(authTimeoutTimer);
-      if (tr.error) {
-        setSyncStatus('err', 'Sign-in failed — tap Connect');
-        document.getElementById('syncBtn').textContent = 'Connect';
-        return;
-      }
-      onTokenSuccess(tr, hint);
-    },
-  });
-
-  authTimeoutTimer = setTimeout(() => {
-    if (!accessToken) {
-      setSyncStatus('err', 'Sign in to sync with Drive');
-      document.getElementById('syncBtn').textContent = 'Connect';
-    }
-  }, 30000);
-
-  client.requestAccessToken();
-}
-
-// ── Shared success handler ────────────────────────────────────
-function onTokenSuccess(tr, hint) {
-  accessToken = tr.access_token;
-  const expiresIn = tr.expires_in || 3600;
-  const expiryMs  = Date.now() + expiresIn * 1000;
-
-  // Cache token in localStorage — survives tab closes, PWA restarts, etc.
-  localStorage.setItem(TOKEN_LS_KEY,  accessToken);
-  localStorage.setItem(EXPIRY_LS_KEY, expiryMs);
-
-  // Persist email for future hint
-  const email = hint || localStorage.getItem(EMAIL_KEY);
-  if (email) localStorage.setItem(EMAIL_KEY, email);
-
-  // Proactive silent refresh 5 min before expiry
-  clearTimeout(tokenRefreshTimer);
-  tokenRefreshTimer = setTimeout(() => refreshToken(), (expiresIn - 300) * 1000);
-
-  setSyncStatus('busy', 'Loading from Drive…');
-  loadFromDrive();
-}
-
-// ── Called by One Tap if it fires ────────────────────────────
-function onOneTapCredential(response) {
+async function silentRefresh() {
   try {
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
-    localStorage.setItem(EMAIL_KEY, payload.email || payload.sub);
-  } catch(e) {}
-  requestDriveTokenSilent(localStorage.getItem(EMAIL_KEY));
+    const res  = await fetch('/api/auth/refresh');
+    if (res.ok) {
+      const { access_token, expires_at } = await res.json();
+      onTokenSuccess(access_token, expires_at);
+    } else {
+      // Not logged in — show Sign in button
+      showLoginButton();
+    }
+  } catch (err) {
+    console.error('[auth] refresh error:', err);
+    showLoginButton();
+  }
 }
 
-// Alias (kept for compatibility)
-function requestDriveToken(hint) {
-  requestDriveTokenInteractive(hint);
-}
-
-// ── Proactive token refresh (silent only, never popup) ───────
-function refreshToken() {
-  localStorage.removeItem(TOKEN_LS_KEY);
-  localStorage.removeItem(EXPIRY_LS_KEY);
-  requestDriveTokenSilent(localStorage.getItem(EMAIL_KEY) || null);
-}
-
-// ── 401 mid-session handler ───────────────────────────────────
-function refreshTokenThenRetry() {
-  localStorage.removeItem(TOKEN_LS_KEY);
-  localStorage.removeItem(EXPIRY_LS_KEY);
+function showLoginButton() {
   accessToken = null;
-  const email    = localStorage.getItem(EMAIL_KEY);
-  const clientId = getClientId();
-  if (!clientId) return;
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: clientId, scope: SCOPES,
-    hint: email || undefined,
-    prompt: 'none',
-    callback: (tr) => {
-      if (!tr.error) {
-        onTokenSuccess(tr, email);
-        saveToDrive();
-      } else {
-        setSyncStatus('err', 'Session expired — tap Connect');
-        document.getElementById('syncBtn').textContent = 'Connect';
-      }
-    },
-  });
-  client.requestAccessToken({ prompt: 'none' });
-}
-
-function signOut() {
-  const tok = accessToken;
-  accessToken = null;
-  clearTimeout(tokenRefreshTimer);
-  localStorage.removeItem(TOKEN_LS_KEY);
-  localStorage.removeItem(EXPIRY_LS_KEY);
-  localStorage.removeItem(HINT_KEY);
-  localStorage.removeItem(EMAIL_KEY);
-  google.accounts.id.disableAutoSelect();
-  if (tok) { try { google.accounts.oauth2.revoke(tok, ()=>{}); } catch {} }
+  setSyncStatus('err', 'Not signed in');
+  document.getElementById('loginBtn').style.display  = '';
+  document.getElementById('syncBtn').style.display   = 'none';
   document.getElementById('signOutBtn').style.display = 'none';
-  document.getElementById('syncBtn').textContent = 'Connect';
-  setSyncStatus('', 'Signed out — tap Connect to sign in again');
-  flash('Signed out');
+}
+
+function onTokenSuccess(token, expiresAt, skipDriveLoad, fromCache) {
+  accessToken = token;
+
+  // Cache in localStorage
+  localStorage.setItem(TOKEN_LS_KEY,  token);
+  localStorage.setItem(EXPIRY_LS_KEY, expiresAt);
+
+  // Hide login, show sync/logout buttons
+  document.getElementById('loginBtn').style.display   = 'none';
+  document.getElementById('syncBtn').style.display    = '';
+  document.getElementById('signOutBtn').style.display = '';
+
+  // Schedule proactive refresh 5 min before expiry
+  const ms = expiresAt - Date.now() - 300000;
+  clearTimeout(tokenRefreshTimer);
+  if (ms > 0) tokenRefreshTimer = setTimeout(silentRefresh, ms);
+  else silentRefresh(); // already near expiry — refresh now
+
+  if (!skipDriveLoad) {
+    setSyncStatus('busy', 'Loading from Drive…');
+    loadFromDrive();
+  }
 }
 
 function handleSyncBtn() {
   if (accessToken) { setSyncStatus('busy', 'Syncing…'); saveToDrive(); }
-  else requestDriveTokenInteractive(localStorage.getItem(EMAIL_KEY) || null);
+  else window.location.href = '/api/auth/login';
+}
+
+function signOut() {
+  // Handled by the <a href="/api/auth/logout"> link — clears cookie server-side
+  accessToken = null;
+  localStorage.removeItem(TOKEN_LS_KEY);
+  localStorage.removeItem(EXPIRY_LS_KEY);
+}
+
+function refreshTokenThenRetry() {
+  silentRefresh().then(() => {
+    if (accessToken) saveToDrive();
+  });
 }
 
 // ============================================================
@@ -1292,10 +1159,9 @@ async function loadFromDrive() {
       document.getElementById('signOutBtn').style.display = 'block';
       const cr   = await fetch(`${DRIVE_API}/files/${driveFileId}?alt=media`, { headers: { Authorization: 'Bearer ' + accessToken } });
       const data = await cr.json();
-      if (!data.food)     data.food     = { categories: [], items: [] };
-      if (!data.periods)  data.periods  = [];
-      if (!data.notes)    data.notes    = {};
-      if (!data.settings) data.settings = { height: null, age: null, sex: 'm', calGoal: null };
+      if (!data.food)    data.food    = { categories: [], items: [] };
+      if (!data.periods) data.periods = [];
+      if (!data.notes)   data.notes   = {};
       db = data;
       saveLocal();
       autoActivateCurrentPeriod();
@@ -1566,24 +1432,47 @@ function selectSuggestion(item) {
 // ============================================================
 //  CALORIES
 // ============================================================
+// ── Calorie mode: '+' = add food, '−' = burn (workout) ──────────────────────
+let calBurnMode = false;
+
+function toggleCalMode() {
+  calBurnMode = !calBurnMode;
+  const btn    = document.getElementById('calModeBtn');
+  const addBtn = document.getElementById('calAddBtn');
+  if (calBurnMode) {
+    btn.textContent = '−';
+    btn.classList.add('burn-mode');
+    addBtn.textContent = '− Burn';
+    addBtn.className = 'btn btn-burn';
+    document.getElementById('calInput').placeholder = 'Calories burned (workout)…';
+  } else {
+    btn.textContent = '+';
+    btn.classList.remove('burn-mode');
+    addBtn.textContent = '+ Add';
+    addBtn.className = 'btn btn-amber';
+    document.getElementById('calInput').placeholder = 'Add kcal or type food name…';
+  }
+}
+
 function addCalories() {
   const inp = document.getElementById('calInput');
   const raw = inp.value.trim();
-  // If it's a number — add directly; if text but no suggestion selected — ignore
   const val = parseFloat(raw.replace(',','.'));
   if (!raw || isNaN(val) || val < 1 || val > 10000) {
     if (raw && isNaN(val)) { flash('Select a suggestion or enter a number', true); return; }
     flash('Enter a valid amount (1–10000)', true); return;
   }
-  const date = getDate();
+  const date   = getDate();
+  const amount = calBurnMode ? -Math.round(val) : Math.round(val);
+  const label  = calBurnMode ? '🔥 Burned' : undefined;
   if (!db.calories[date]) db.calories[date] = [];
-  db.calories[date].push({ id: Date.now(), amount: Math.round(val), time: nowTime() });
+  db.calories[date].push({ id: Date.now(), amount, time: nowTime(), ...(label ? { label } : {}) });
   inp.value = '';
   hideSuggestions();
   save();
   renderCalories();
   renderCalChart();
-  flash('Calories added ✓');
+  flash(calBurnMode ? 'Burned calories recorded ✓' : 'Calories added ✓');
 }
 
 function deleteCal(date, id) {
@@ -1624,7 +1513,7 @@ function renderCalories() {
     li.innerHTML = `
       <div class="entry-left">
         <span class="entry-time">${entry.time}${entry.label ? ' · ' + entry.label : ''}</span>
-        <span class="entry-val" style="color:${entry.runColor}">+${entry.amount} kcal</span>
+        <span class="entry-val ${entry.amount < 0 ? 'burn' : ''}" style="color:${entry.amount < 0 ? '#6ab0f0' : entry.runColor}">${entry.amount < 0 ? '−' + Math.abs(entry.amount) : '+' + entry.amount} kcal</span>
       </div>
       <button class="btn-del" onclick="deleteCal('${date}',${entry.id})">✕</button>`;
     ul.appendChild(li);
@@ -3053,6 +2942,9 @@ function startTimer() {
 // ============================================================
 //  BMI
 // ============================================================
+const HEIGHT_KEY = 'wt_height';
+const AGE_KEY    = 'wt_age';
+const SEX_KEY    = 'wt_sex';
 
 // BMI strip range: 10–50 kg/m²
 const BMI_MIN = 10, BMI_MAX = 50;
@@ -3078,7 +2970,7 @@ function bmiToPercent(bmi) {
 function renderBmi(startWeight, curWeight) {
   const wrap      = document.getElementById('bmiWrap');
   const hint      = document.getElementById('bmiSetupHint');
-  const heightCm  = parseFloat(ensureSettings().height);
+  const heightCm  = parseFloat(localStorage.getItem(HEIGHT_KEY));
 
   if (!heightCm) {
     wrap.style.display = 'none';
@@ -3117,37 +3009,33 @@ function renderBmi(startWeight, curWeight) {
 // ============================================================
 //  SETTINGS
 // ============================================================
-// Settings live in db.settings — synced to Google Drive like everything else.
-// localStorage (via saveLocal/save) acts only as an instant-load cache.
-
-function ensureSettings() {
-  if (!db.settings) db.settings = { height: null, age: null, sex: 'm', calGoal: null };
-  return db.settings;
-}
+const CAL_GOAL_KEY = 'wt_cal_goal';
 
 function getCalGoal() {
-  const v = ensureSettings().calGoal;
-  return (v && !isNaN(v)) ? v : null;
+  const v = parseInt(localStorage.getItem(CAL_GOAL_KEY));
+  return isNaN(v) ? null : v;
 }
 
 function saveCalGoal() {
   const inp = document.getElementById('settingCalGoal');
   const val = parseInt(inp.value);
   if (!val || val < 100 || val > 9999) { flash('Enter a valid goal (100–9999 kcal)', true); return; }
-  ensureSettings().calGoal = val;
-  save(); // persist locally + sync to Drive
+  localStorage.setItem(CAL_GOAL_KEY, val);
   flash('Calorie goal saved ✓');
   render(); // update remaining bar immediately
 }
 
 function renderSettings() {
-  const s   = ensureSettings();
-  const inp = document.getElementById('settingCalGoal');
-  if (s.calGoal) inp.value = s.calGoal;
+  const goal = getCalGoal();
+  const inp  = document.getElementById('settingCalGoal');
+  if (goal) inp.value = goal;
 
-  if (s.height) document.getElementById('settingHeight').value = s.height;
-  if (s.age)    document.getElementById('settingAge').value    = s.age;
-  document.getElementById('settingSex').value = s.sex || 'm';
+  const h = localStorage.getItem(HEIGHT_KEY);
+  const a = localStorage.getItem(AGE_KEY);
+  const s = localStorage.getItem(SEX_KEY) || 'm';
+  if (h) document.getElementById('settingHeight').value = h;
+  if (a) document.getElementById('settingAge').value = a;
+  document.getElementById('settingSex').value = s;
 }
 
 function saveBodyProfile() {
@@ -3155,11 +3043,9 @@ function saveBodyProfile() {
   const a = parseInt(document.getElementById('settingAge').value);
   const s = document.getElementById('settingSex').value;
   if (!h || h < 100 || h > 250) { flash('Enter a valid height (100–250 cm)', true); return; }
-  const settings = ensureSettings();
-  settings.height = h;
-  settings.age    = (a && a >= 10 && a <= 120) ? a : null;
-  settings.sex    = s;
-  save(); // persist locally + sync to Drive
+  localStorage.setItem(HEIGHT_KEY, h);
+  if (a && a >= 10 && a <= 120) localStorage.setItem(AGE_KEY, a);
+  localStorage.setItem(SEX_KEY, s);
   flash('Body profile saved ✓');
   renderStats(); // re-render BMI strip
 }
