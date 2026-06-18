@@ -3140,16 +3140,8 @@ function clearViewingPeriod() {
 
   autoActivateCurrentPeriod();
 
-  const savedId = getClientId();
-
-  if (savedId) {
-    document.getElementById('setupPanel').style.display = 'none';
-    document.getElementById('clientIdInput').value = savedId;
-    // Wait for GIS script then start auth
-    window.addEventListener('load', () => {
-      setTimeout(startAuth, 800);
-    });
-  }
+  // New server-side auth — always start auth on load, no Client ID needed
+  startAuth();
 
   render();
 })();
