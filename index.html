@@ -16,33 +16,16 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{min-height:100vh;background:#080b10;overflow-x:hidden}
+html{min-height:100vh;background:#070b0f;overflow-x:hidden}
 @media(min-width:900px){
   html{ font-size:118%; }
 }
 body{
   color:#d4edd8;font-family:'DM Mono',monospace;padding-bottom:80px;
   min-height:100vh;overflow-x:hidden;
-  background:
-    radial-gradient(ellipse 70% 55% at 12%  8%,  rgba(20,90,45,.6)  0%, transparent 55%),
-    radial-gradient(ellipse 50% 45% at 88% 85%,  rgba(10,55,30,.55) 0%, transparent 50%),
-    radial-gradient(ellipse 35% 35% at 55% 45%,  rgba(30,70,40,.18) 0%, transparent 65%),
-    radial-gradient(ellipse 25% 20% at 30% 70%,  rgba(15,60,35,.25) 0%, transparent 50%),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 39px,
-      rgba(120,220,140,.018) 39px,
-      rgba(120,220,140,.018) 40px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 39px,
-      rgba(120,220,140,.012) 39px,
-      rgba(120,220,140,.012) 40px
-    ),
-    #070b0f;
+  /* Background is fully driven by JS updateDayBackground() via inline style on <body> */
+  background:#070b0f;
+  transition:background 60s linear; /* smooth 1-minute crossfade between updates */
 }
 
 /* ── Desktop centering ── */
@@ -3082,6 +3065,121 @@ function renderCalRemaining(total) {
     : pct > 85 ? '#f0c060' : '#78dc8c';
 }
 
+
+// ============================================================
+//  DAY BACKGROUND  (PS3-style time-aware background)
+// ============================================================
+//
+//  Time keyframes (hour → theme):
+//   0:00  Night         — deep dark navy/black, barely any green
+//   4:00  Pre-dawn      — very dark, hint of deep teal
+//   6:00  Dawn          — dark with subtle warm olive-green tinge
+//   8:00  Morning       — medium-dark green waking up
+//  12:00  Noon          — brightest, vivid green, lighter base
+//  16:00  Afternoon     — rich deep green, still bright
+//  19:00  Dusk          — darkening, warm amber-green hints
+//  21:00  Evening       — dark, cooler blue-green
+//  23:00  Late night    — back toward deep dark
+
+const DAY_KEYFRAMES = [
+  // [hour, baseHex,   orb1rgba,                 orb2rgba,                 orb3rgba,                 gridA,   gridB  ]
+  { h:  0, base:'#04060c', o1:'12,30,20,.4',  o2:'8,20,15,.3',   o3:'10,25,18,.12', gA:.006, gB:.004 },
+  { h:  4, base:'#050a0e', o1:'10,45,35,.4',  o2:'8,30,25,.3',   o3:'12,40,30,.1',  gA:.007, gB:.005 },
+  { h:  6, base:'#060d0a', o1:'18,65,35,.45', o2:'12,45,28,.35', o3:'20,55,32,.12', gA:.009, gB:.006 },
+  { h:  8, base:'#070f0b', o1:'20,80,40,.5',  o2:'14,55,30,.4',  o3:'25,65,38,.15', gA:.012, gB:.008 },
+  { h: 12, base:'#0a1510', o1:'28,110,52,.65',o2:'18,75,42,.55', o3:'35,90,48,.22', gA:.022, gB:.015 },
+  { h: 16, base:'#081210', o1:'24,95,46,.6',  o2:'16,68,38,.5',  o3:'30,82,44,.18', gA:.018, gB:.012 },
+  { h: 19, base:'#07100d', o1:'20,78,38,.52', o2:'14,55,32,.42', o3:'25,70,40,.14', gA:.013, gB:.009 },
+  { h: 21, base:'#060c0e', o1:'14,50,38,.45', o2:'10,35,28,.35', o3:'16,45,35,.12', gA:.009, gB:.006 },
+  { h: 23, base:'#050810', o1:'10,30,22,.38', o2:'8,22,18,.28',  o3:'12,28,20,.1',  gA:.007, gB:.005 },
+  { h: 24, base:'#04060c', o1:'12,30,20,.4',  o2:'8,20,15,.3',   o3:'10,25,18,.12', gA:.006, gB:.004 },
+];
+
+function lerpNum(a, b, t) { return a + (b - a) * t; }
+
+function lerpColor(hexA, hexB, t) {
+  const parse = h => [
+    parseInt(h.slice(1,3), 16),
+    parseInt(h.slice(3,5), 16),
+    parseInt(h.slice(5,7), 16),
+  ];
+  const [r1,g1,b1] = parse(hexA);
+  const [r2,g2,b2] = parse(hexB);
+  const r = Math.round(lerpNum(r1,r2,t));
+  const g = Math.round(lerpNum(g1,g2,t));
+  const b = Math.round(lerpNum(b1,b2,t));
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+function lerpRgba(strA, strB, t) {
+  const parse = s => s.split(',').map(Number);
+  const [r1,g1,b1,a1] = parse(strA);
+  const [r2,g2,b2,a2] = parse(strB);
+  return [
+    Math.round(lerpNum(r1,r2,t)),
+    Math.round(lerpNum(g1,g2,t)),
+    Math.round(lerpNum(b1,b2,t)),
+    (lerpNum(a1,a2,t)).toFixed(2),
+  ].join(',');
+}
+
+function getDayTheme() {
+  const now  = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60; // e.g. 14.5 = 14:30
+
+  // Find surrounding keyframes
+  const kf = DAY_KEYFRAMES;
+  let lo = kf[kf.length - 2], hi = kf[kf.length - 1];
+  for (let i = 0; i < kf.length - 1; i++) {
+    if (hour >= kf[i].h && hour < kf[i+1].h) {
+      lo = kf[i]; hi = kf[i+1]; break;
+    }
+  }
+
+  const t = (hour - lo.h) / (hi.h - lo.h); // 0..1 within segment
+
+  return {
+    base: lerpColor(lo.base, hi.base, t),
+    o1:   lerpRgba(lo.o1, hi.o1, t),
+    o2:   lerpRgba(lo.o2, hi.o2, t),
+    o3:   lerpRgba(lo.o3, hi.o3, t),
+    gA:   lerpNum(lo.gA, hi.gA, t).toFixed(3),
+    gB:   lerpNum(lo.gB, hi.gB, t).toFixed(3),
+  };
+}
+
+function updateDayBackground() {
+  const th = getDayTheme();
+  document.body.style.background = `
+    radial-gradient(ellipse 70% 55% at 12%  8%,  rgba(${th.o1}) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 88% 85%,  rgba(${th.o2}) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 35% at 55% 45%,  rgba(${th.o3}) 0%, transparent 65%),
+    radial-gradient(ellipse 25% 20% at 30% 70%,  rgba(${th.o3}) 0%, transparent 50%),
+    repeating-linear-gradient(
+      0deg, transparent, transparent 39px,
+      rgba(120,220,140,${th.gA}) 39px, rgba(120,220,140,${th.gA}) 40px
+    ),
+    repeating-linear-gradient(
+      90deg, transparent, transparent 39px,
+      rgba(120,220,140,${th.gB}) 39px, rgba(120,220,140,${th.gB}) 40px
+    ),
+    ${th.base}
+  `.replace(/\n\s+/g, ' ');
+  document.documentElement.style.background = th.base;
+}
+
+function startDayBackground() {
+  updateDayBackground(); // apply immediately
+
+  // Recalculate every minute so the transition stays accurate
+  const now = new Date();
+  const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+  setTimeout(() => {
+    updateDayBackground();
+    setInterval(updateDayBackground, 60000);
+  }, msToNextMinute);
+}
+
 // ============================================================
 //  RENDER ALL
 // ============================================================
@@ -3140,6 +3238,7 @@ function clearViewingPeriod() {
   checkLateBanner();
   setInterval(checkLateBanner, 60000); // re-check every minute
   startTimer();
+  startDayBackground();
   document.getElementById('weightInput').addEventListener('keydown', e => { if(e.key==='Enter') saveWeight(); });
 
   autoActivateCurrentPeriod();
