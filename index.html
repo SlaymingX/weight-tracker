@@ -599,6 +599,29 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .btn-mode-toggle.burn-mode:hover{background:rgba(80,140,220,.1);color:#6ab0f0}
 .entry-val.burn{color:#6ab0f0 !important}
 
+
+/* ---- CHART ZOOM ---- */
+.chart-zoom-wrap{position:relative;height:220px}
+.chart-zoom-wrap canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+.chart-select-overlay{
+  position:absolute;top:0;bottom:0;pointer-events:none;
+  background:rgba(120,220,140,.12);border-left:1.5px solid rgba(120,220,140,.6);
+  border-right:1.5px solid rgba(120,220,140,.6);display:none;z-index:2;
+}
+.chart-zoom-bar{
+  display:none;align-items:center;gap:10px;margin-top:8px;padding:7px 10px;
+  background:rgba(120,220,140,.06);border:1px solid rgba(120,220,140,.15);border-radius:9px;
+  font-size:11px;color:rgba(180,220,185,.6);
+}
+.chart-zoom-bar.visible{display:flex}
+.chart-zoom-label{flex:1}
+.chart-zoom-label b{color:#78dc8c}
+.btn-zoom-reset{
+  background:none;border:1px solid rgba(120,220,140,.3);color:#78dc8c;
+  border-radius:7px;padding:4px 12px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;
+}
+.btn-zoom-reset:hover{background:rgba(120,220,140,.1)}
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -800,7 +823,16 @@ input::placeholder{color:rgba(180,220,185,.3)}
   <!-- WEIGHT CHART — full width below columns -->
   <div class="section" id="weightChartSection">
     <div class="sec-label">Weight Chart</div>
-    <div id="weightChartWrap" style="display:none"><div class="chart-box" style="height:220px"><canvas id="weightChart"></canvas></div></div>
+    <div id="weightChartWrap" style="display:none">
+      <div class="chart-zoom-wrap" id="chartZoomWrap">
+        <canvas id="weightChart"></canvas>
+        <div class="chart-select-overlay" id="chartSelectOverlay"></div>
+      </div>
+      <div class="chart-zoom-bar" id="chartZoomBar">
+        <span class="chart-zoom-label" id="chartZoomLabel">Zoomed view</span>
+        <button class="btn-zoom-reset" onclick="resetChartZoom()">✕ Reset</button>
+      </div>
+    </div>
     <div class="no-data" id="weightNoData">Add 2+ entries to see your chart</div>
     <div class="divider" id="logWrap" style="display:none">
       <div class="sub-label">All Entries</div>
@@ -1588,20 +1620,36 @@ function renderWeightLog() {
 // chartDefaults removed — all charts now build options inline to preserve callbacks
 function renderWeightChart() {
   const p = getActivePeriod();
-  const entries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b));
+  const allEntries = Object.entries(db.weights).filter(([d]) => periodContainsDate(p,d)).sort(([a],[b]) => a.localeCompare(b));
   const wrap = document.getElementById('weightChartWrap'), noData = document.getElementById('weightNoData');
-  if (entries.length < 2) { wrap.style.display='none'; noData.style.display='flex'; return; }
+  if (allEntries.length < 2) { wrap.style.display='none'; noData.style.display='flex'; return; }
   wrap.style.display='block'; noData.style.display='none';
+
+  // Apply zoom slice
+  const zoomed  = chartZoomState !== null;
+  const entries = zoomed
+    ? allEntries.slice(chartZoomState.startIdx, chartZoomState.endIdx + 1)
+    : allEntries;
+
+  // Update zoom bar
+  const bar   = document.getElementById('chartZoomBar');
+  const label = document.getElementById('chartZoomLabel');
+  if (zoomed && entries.length >= 2) {
+    bar.classList.add('visible');
+    label.innerHTML = `<b>${fmtDate(entries[0][0])}</b> — <b>${fmtDate(entries[entries.length-1][0])}</b> &nbsp;(${entries.length} entries)`;
+  } else {
+    bar.classList.remove('visible');
+    chartZoomState = null;
+  }
+
   const ctx = document.getElementById('weightChart').getContext('2d');
   if (wChart) wChart.destroy();
 
-  // Scale down dots and border as data gets denser
   const n           = entries.length;
   const pointRadius = n > 120 ? 0 : n > 60 ? 1.5 : n > 30 ? 2.5 : 4;
   const hoverRadius = n > 120 ? 4 : n > 60 ? 5  : n > 30 ? 6   : 7;
   const borderWidth = n > 60  ? 1.5 : 2;
   const tension     = n > 60  ? 0.4 : 0.3;
-  // Above 120 points hide dots entirely — line only; click still works via hitRadius
   const hitRadius   = n > 120 ? 8 : 0;
 
   wChart = new Chart(ctx, {
@@ -1619,9 +1667,10 @@ function renderWeightChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      // Disable built-in click when drag-selecting (pointerup handles it)
       onClick: (event, elements) => {
         try {
-          if (!elements.length) return;
+          if (_isDragging || !elements.length) return;
           const date = entries[elements[0].index][0];
           document.getElementById('datePicker').value = date;
           render();
@@ -1637,9 +1686,11 @@ function renderWeightChart() {
           titleFont: { family: 'DM Mono', size: 11 },
           bodyFont:  { family: 'DM Mono', size: 12 },
           padding: 10, cornerRadius: 8,
+          // Disable tooltip while dragging
+          filter: () => !_isDragging,
           callbacks: {
             title: items => fmtDate(items[0].label),
-            afterLabel: () => '  ↗ Click to open this date',
+            afterLabel: () => zoomed ? '  ↗ Click to open' : '  ↗ Click · Drag to zoom',
           }
         }
       },
@@ -1656,6 +1707,10 @@ function renderWeightChart() {
       }
     }
   });
+
+  // Set up drag-to-zoom on the canvas
+  const canvas = document.getElementById('weightChart');
+  setupChartDragZoom(canvas, allEntries);
 }
 function renderCalChart() {
   const p = getActivePeriod();
@@ -3180,6 +3235,88 @@ function startDayBackground() {
   }, msToNextMinute);
 }
 
+
+// ============================================================
+//  WEIGHT CHART DRAG-TO-ZOOM
+// ============================================================
+let chartZoomState = null;  // { startIdx, endIdx } or null = full view
+let _allWeightEntries = []; // cache of all entries for current view
+
+let _dragStartX  = null;    // pixel x where drag began
+let _dragStartIdx = null;
+let _isDragging  = false;
+
+function setupChartDragZoom(canvas, entries) {
+  _allWeightEntries = entries;
+  const overlay = document.getElementById('chartSelectOverlay');
+
+  function xToIndex(clientX) {
+    const rect  = canvas.getBoundingClientRect();
+    const pct   = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const area  = wChart.chartArea;
+    const aPct  = Math.max(0, Math.min(1, (clientX - rect.left - area.left) / (area.right - area.left)));
+    const raw   = aPct * (entries.length - 1);
+    return Math.round(Math.max(0, Math.min(entries.length - 1, raw)));
+  }
+
+  function showOverlay(x1px, x2px) {
+    const left  = Math.min(x1px, x2px);
+    const width = Math.abs(x2px - x1px);
+    overlay.style.left    = left + 'px';
+    overlay.style.width   = width + 'px';
+    overlay.style.display = 'block';
+  }
+
+  function clearOverlay() {
+    overlay.style.display = 'none';
+  }
+
+  // ── pointer events (covers mouse + touch) ──────────────────
+  function onPointerDown(e) {
+    if (e.target !== canvas) return;
+    _isDragging   = true;
+    _dragStartX   = e.clientX;
+    _dragStartIdx = xToIndex(e.clientX);
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (!_isDragging) return;
+    const rect  = canvas.getBoundingClientRect();
+    const area  = wChart.chartArea;
+    const x1px  = (_dragStartX - rect.left);
+    const x2px  = (e.clientX   - rect.left);
+    showOverlay(x1px, x2px);
+    e.preventDefault();
+  }
+
+  function onPointerUp(e) {
+    if (!_isDragging) return;
+    _isDragging = false;
+    clearOverlay();
+
+    const endIdx   = xToIndex(e.clientX);
+    const startIdx = _dragStartIdx;
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+
+    if (hi - lo < 1) return; // too small — treat as click, not drag
+
+    chartZoomState = { startIdx: lo, endIdx: hi };
+    renderWeightChart();
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerup',   onPointerUp);
+  canvas.addEventListener('pointercancel', () => { _isDragging = false; clearOverlay(); });
+}
+
+function resetChartZoom() {
+  chartZoomState = null;
+  renderWeightChart();
+}
 // ============================================================
 //  RENDER ALL
 // ============================================================
