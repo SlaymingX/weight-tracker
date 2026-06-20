@@ -622,6 +622,10 @@ input::placeholder{color:rgba(180,220,185,.3)}
 }
 .btn-zoom-reset:hover{background:rgba(120,220,140,.1)}
 
+
+/* Prevent page scroll during chart drag on mobile */
+#weightChart, #histCompareChart { touch-action: none; user-select: none; }
+
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
 #flash.err{border-color:#e07070;color:#e07070;background:#1f0f0f}
@@ -1207,7 +1211,26 @@ async function loadFromDrive() {
 }
 
 async function saveToDrive() {
-  if (!accessToken) { saveLocal(); return; }
+  // No token in memory — try to refresh silently before saving
+  if (!accessToken) {
+    saveLocal();
+    setSyncStatus('busy', 'Refreshing session…');
+    try {
+      const r = await fetch('/api/auth/refresh');
+      if (r.ok) {
+        const { access_token, expires_at } = await r.json();
+        onTokenSuccess(access_token, expires_at, /*skipDriveLoad=*/true);
+        // Retry save now that we have a token
+        await saveToDrive();
+      } else {
+        setSyncStatus('err', 'Not signed in — data saved locally only');
+      }
+    } catch(e) {
+      setSyncStatus('err', 'Session refresh failed');
+    }
+    return;
+  }
+
   isSyncing = true; updateSyncBtn(true);
   try {
     const content = JSON.stringify(db);
@@ -1216,20 +1239,53 @@ async function saveToDrive() {
       res = await fetch(`${UPLOAD_API}/files/${driveFileId}?uploadType=media`,
         { method:'PATCH', headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':'application/json' }, body:content });
     } else {
+      // Create new file
       const meta = JSON.stringify({ name: FILENAME, parents: ['appDataFolder'] });
       const form = new FormData();
       form.append('metadata', new Blob([meta], {type:'application/json'}));
-      form.append('file', new Blob([content], {type:'application/json'}));
-      res = await fetch(`${UPLOAD_API}/files?uploadType=multipart&fields=id`,
+      form.append('file',     new Blob([content], {type:'application/json'}));
+      const createRes = await fetch(`${UPLOAD_API}/files?uploadType=multipart&fields=id`,
         { method:'POST', headers:{ Authorization:'Bearer '+accessToken }, body:form });
-      const created = await res.json();
+      if (!createRes.ok) {
+        setSyncStatus('err', 'Failed to create Drive file (HTTP ' + createRes.status + ')');
+        isSyncing = false; updateSyncBtn(false);
+        return;
+      }
+      const created = await createRes.json();
       driveFileId = created.id;
       localStorage.setItem(FILE_KEY, driveFileId);
+      saveLocal();
+      setSyncStatus('ok', 'Saved to Drive', new Date().toISOString());
+      isSyncing = false; updateSyncBtn(false);
+      return;
     }
-    if (res.ok) { saveLocal(); setSyncStatus('ok', 'Saved to Drive', new Date().toISOString()); }
-    else if (res.status === 401) { accessToken = null; setSyncStatus('busy','Refreshing token…'); refreshTokenThenRetry(); }
-    else { setSyncStatus('err', 'Save failed (HTTP ' + res.status + ')'); }
-  } catch(e) { setSyncStatus('err', 'Drive save failed'); console.error(e); saveLocal(); }
+    if (res.ok) {
+      saveLocal();
+      setSyncStatus('ok', 'Saved to Drive', new Date().toISOString());
+    } else if (res.status === 401) {
+      // Token expired mid-session — refresh and retry once
+      accessToken = null;
+      localStorage.removeItem(TOKEN_LS_KEY);
+      localStorage.removeItem(EXPIRY_LS_KEY);
+      setSyncStatus('busy', 'Refreshing token…');
+      try {
+        const r = await fetch('/api/auth/refresh');
+        if (r.ok) {
+          const { access_token, expires_at } = await r.json();
+          onTokenSuccess(access_token, expires_at, /*skipDriveLoad=*/true);
+          await saveToDrive(); // one retry
+        } else {
+          setSyncStatus('err', 'Session expired — tap Sign in');
+        }
+      } catch(e) { setSyncStatus('err', 'Token refresh failed'); }
+    } else {
+      setSyncStatus('err', 'Save failed (HTTP ' + res.status + ')');
+    }
+  } catch(e) {
+    setSyncStatus('err', 'Drive save failed');
+    console.error('[saveToDrive]', e);
+    saveLocal();
+  }
   isSyncing = false; updateSyncBtn(false);
 }
 
@@ -2360,36 +2416,70 @@ function setupCompareDragZoom(canvas) {
     canvas.removeEventListener('pointercancel', canvas._cmpHandlers.cancel);
   }
 
+  function getCmpClientX(e) {
+    if (e.touches && e.touches.length) return e.touches[0].clientX;
+    if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0].clientX;
+    return e.clientX;
+  }
+
+  function startCmpDrag(clientX) {
+    _cmpDragging     = true;
+    _cmpDragStartX   = clientX;
+    _cmpDragStartDay = clientXToDayOffset(clientX);
+  }
+
+  function finishCmpDrag(clientX) {
+    _cmpDragging = false; clearOverlay();
+    const endDay = clientXToDayOffset(clientX);
+    const lo = Math.min(_cmpDragStartDay, endDay);
+    const hi = Math.max(_cmpDragStartDay, endDay);
+    if (hi - lo < 1) return;
+    cmpZoomState = { dayStart: lo, dayEnd: hi };
+    renderCompareChart();
+  }
+
+  // Pointer events (mouse)
   function onDown(e) {
-    _cmpDragging      = true;
-    _cmpDragStartX    = e.clientX;
-    _cmpDragStartDay  = clientXToDayOffset(e.clientX);
+    if (e.pointerType === 'touch') return;
+    startCmpDrag(e.clientX);
     canvas.setPointerCapture(e.pointerId);
     e.preventDefault();
   }
   function onMove(e) {
-    if (!_cmpDragging) return;
-    showOverlay(_cmpDragStartX, e.clientX);
-    e.preventDefault();
+    if (e.pointerType === 'touch' || !_cmpDragging) return;
+    showOverlay(_cmpDragStartX, e.clientX); e.preventDefault();
   }
   function onUp(e) {
-    if (!_cmpDragging) return;
-    _cmpDragging = false;
-    clearOverlay();
-    const endDay = clientXToDayOffset(e.clientX);
-    const lo = Math.min(_cmpDragStartDay, endDay);
-    const hi = Math.max(_cmpDragStartDay, endDay);
-    if (hi - lo < 1) return; // tap, not drag
-    cmpZoomState = { dayStart: lo, dayEnd: hi };
-    renderCompareChart();
+    if (e.pointerType === 'touch' || !_cmpDragging) return;
+    finishCmpDrag(e.clientX);
   }
-  function onCancel() { _cmpDragging = false; clearOverlay(); }
+  function onCancel(e) {
+    if (e.pointerType === 'touch') return;
+    _cmpDragging = false; clearOverlay();
+  }
 
   canvas._cmpHandlers = { down:onDown, move:onMove, up:onUp, cancel:onCancel };
   canvas.addEventListener('pointerdown',   onDown);
   canvas.addEventListener('pointermove',   onMove);
   canvas.addEventListener('pointerup',     onUp);
   canvas.addEventListener('pointercancel', onCancel);
+
+  // Touch events (mobile)
+  canvas.addEventListener('touchstart', function(e) {
+    startCmpDrag(getCmpClientX(e));
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchmove', function(e) {
+    if (!_cmpDragging) return;
+    showOverlay(_cmpDragStartX, getCmpClientX(e));
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', function(e) {
+    if (!_cmpDragging) return;
+    finishCmpDrag(getCmpClientX(e));
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchcancel', function() { _cmpDragging = false; clearOverlay(); });
 }
 
 function resetCompareZoom() {
