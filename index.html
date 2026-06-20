@@ -3256,44 +3256,55 @@ function setupChartDragZoom(canvas, entries) {
   _allWeightEntries = entries;
   const overlay = document.getElementById('chartSelectOverlay');
 
-  function xToIndex(clientX) {
-    const rect  = canvas.getBoundingClientRect();
-    const pct   = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const area  = wChart.chartArea;
-    const aPct  = Math.max(0, Math.min(1, (clientX - rect.left - area.left) / (area.right - area.left)));
-    const raw   = aPct * (entries.length - 1);
-    return Math.round(Math.max(0, Math.min(entries.length - 1, raw)));
+  // Use Chart.js's own scale.getValueForPixel() — the only reliable way to
+  // convert a pixel position to a data index. It handles DPR, CSS scaling, padding.
+  function clientXToIndex(clientX) {
+    const scale   = wChart && wChart.scales && wChart.scales.x;
+    if (!scale) return 0;
+    const rect    = canvas.getBoundingClientRect();
+    // Chart.js scale works in canvas CSS pixels (same coordinate space as getBoundingClientRect)
+    const canvasX = clientX - rect.left;
+    const raw     = scale.getValueForPixel(canvasX);
+    return Math.round(Math.max(0, Math.min(entries.length - 1, raw ?? 0)));
   }
 
-  function showOverlay(x1px, x2px) {
-    const left  = Math.min(x1px, x2px);
-    const width = Math.abs(x2px - x1px);
-    overlay.style.left    = left + 'px';
-    overlay.style.width   = width + 'px';
+  // Overlay is positioned inside the .chart-zoom-wrap which is the canvas's parent.
+  // We clamp to the scale's actual pixel range so it never overflows the plot area.
+  function showOverlay(startClientX, curClientX) {
+    const scale = wChart && wChart.scales && wChart.scales.x;
+    if (!scale) return;
+    const rect  = canvas.getBoundingClientRect();
+    // scale.left / scale.right are in canvas CSS pixel coords
+    const aL    = scale.left;
+    const aR    = scale.right;
+    const x1    = Math.max(aL, Math.min(aR, startClientX - rect.left));
+    const x2    = Math.max(aL, Math.min(aR, curClientX   - rect.left));
+    overlay.style.left    = Math.min(x1, x2) + 'px';
+    overlay.style.width   = Math.abs(x2 - x1) + 'px';
     overlay.style.display = 'block';
   }
 
-  function clearOverlay() {
-    overlay.style.display = 'none';
+  function clearOverlay() { overlay.style.display = 'none'; }
+
+  // Remove previous listeners before re-attaching (called every renderWeightChart)
+  if (canvas._zoomHandlers) {
+    canvas.removeEventListener('pointerdown',   canvas._zoomHandlers.down);
+    canvas.removeEventListener('pointermove',   canvas._zoomHandlers.move);
+    canvas.removeEventListener('pointerup',     canvas._zoomHandlers.up);
+    canvas.removeEventListener('pointercancel', canvas._zoomHandlers.cancel);
   }
 
-  // ── pointer events (covers mouse + touch) ──────────────────
   function onPointerDown(e) {
-    if (e.target !== canvas) return;
     _isDragging   = true;
     _dragStartX   = e.clientX;
-    _dragStartIdx = xToIndex(e.clientX);
+    _dragStartIdx = clientXToIndex(e.clientX);
     canvas.setPointerCapture(e.pointerId);
     e.preventDefault();
   }
 
   function onPointerMove(e) {
     if (!_isDragging) return;
-    const rect  = canvas.getBoundingClientRect();
-    const area  = wChart.chartArea;
-    const x1px  = (_dragStartX - rect.left);
-    const x2px  = (e.clientX   - rect.left);
-    showOverlay(x1px, x2px);
+    showOverlay(_dragStartX, e.clientX);
     e.preventDefault();
   }
 
@@ -3302,24 +3313,24 @@ function setupChartDragZoom(canvas, entries) {
     _isDragging = false;
     clearOverlay();
 
-    const endIdx   = xToIndex(e.clientX);
-    const startIdx = _dragStartIdx;
-    const lo = Math.min(startIdx, endIdx);
-    const hi = Math.max(startIdx, endIdx);
+    const endIdx = clientXToIndex(e.clientX);
+    const lo = Math.min(_dragStartIdx, endIdx);
+    const hi = Math.max(_dragStartIdx, endIdx);
 
-    // Need at least 2 distinct data points to zoom into
-    if (hi - lo < 1) return; // treat as click, not drag
-    const sliceLen = hi - lo + 1;
-    if (sliceLen < 2) return;
+    // Require at least 2 data points; otherwise treat as a tap/click
+    if (hi - lo < 1) return;
 
     chartZoomState = { startIdx: lo, endIdx: hi };
     renderWeightChart();
   }
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
-  canvas.addEventListener('pointerup',   onPointerUp);
-  canvas.addEventListener('pointercancel', () => { _isDragging = false; clearOverlay(); });
+  function onCancel() { _isDragging = false; clearOverlay(); }
+
+  canvas._zoomHandlers = { down: onPointerDown, move: onPointerMove, up: onPointerUp, cancel: onCancel };
+  canvas.addEventListener('pointerdown',   onPointerDown);
+  canvas.addEventListener('pointermove',   onPointerMove);
+  canvas.addEventListener('pointerup',     onPointerUp);
+  canvas.addEventListener('pointercancel', onCancel);
 }
 
 function resetChartZoom() {
