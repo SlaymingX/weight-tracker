@@ -940,7 +940,14 @@ input::placeholder{color:rgba(180,220,185,.3)}
     </div>
     <div class="hist-compare-selector" id="cmpSelector"></div>
     <div class="hist-compare-legend" id="histCompareLegend"></div>
-    <div class="hist-compare-chart"><canvas id="histCompareChart"></canvas></div>
+    <div class="hist-compare-chart" style="position:relative">
+      <canvas id="histCompareChart"></canvas>
+      <div class="chart-select-overlay" id="cmpSelectOverlay"></div>
+    </div>
+    <div class="chart-zoom-bar" id="cmpZoomBar" style="margin:0 12px 10px">
+      <span class="chart-zoom-label" id="cmpZoomLabel"></span>
+      <button class="btn-zoom-reset" onclick="resetCompareZoom()">✕ Reset</button>
+    </div>
   </div>
 
   <!-- NEW PERIOD BUTTON -->
@@ -1183,6 +1190,11 @@ async function loadFromDrive() {
       saveLocal();
       autoActivateCurrentPeriod();
   renderSettings(); // must run after db is loaded from Drive
+  // Restore compare chart period selection from settings
+  const savedCmpIds = ensureSettings().compareIds;
+  if (Array.isArray(savedCmpIds) && savedCmpIds.length > 0) {
+    selectedCompareIds = new Set(savedCmpIds.map(Number));
+  }
       render();
       setSyncStatus('ok', 'Synced with Drive', json.files[0].modifiedTime);
     } else {
@@ -2146,15 +2158,18 @@ const PERIOD_COLORS = [
   '#78dc8c','#f0c060','#7eb8f0','#e07070','#b07ef0',
   '#70d4d4','#f0a070','#a0d870','#f070b8','#90b0f0',
 ];
-let compareChart = null;
-let selectedCompareIds = new Set( // persist selection across renders
-  JSON.parse(localStorage.getItem('wt_compare_ids') || '[]')
-);
+let compareChart    = null;
+let selectedCompareIds = new Set(); // loaded from db.settings after Drive sync
+let cmpZoomState    = null; // { dayStart, dayEnd } — zoom range in day offsets
+let _cmpDragging    = false;
+let _cmpDragStartX  = null;
+let _cmpDragStartDay = null;
 
 function toggleCompareId(id) {
   if (selectedCompareIds.has(id)) selectedCompareIds.delete(id);
   else selectedCompareIds.add(id);
-  localStorage.setItem('wt_compare_ids', JSON.stringify([...selectedCompareIds]));
+  ensureSettings().compareIds = [...selectedCompareIds];
+  save(); // sync to Drive
   renderCompareChart();
 }
 
@@ -2165,22 +2180,26 @@ function renderCompareChart() {
 
   wrap.style.display = 'block';
 
-  // All eligible periods (at least 2 weight entries)
-  const allPeriods = (db.periods || []).filter(p => {
-    return Object.entries(db.weights).filter(([d]) => periodContainsDate(p, d)).length >= 2;
-  });
+  const allPeriods = (db.periods || []).filter(p =>
+    Object.entries(db.weights).filter(([d]) => periodContainsDate(p, d)).length >= 2
+  );
 
-  // Auto-select all if nothing selected yet
+  // Restore saved selection if selectedCompareIds is empty
   if (selectedCompareIds.size === 0 && allPeriods.length) {
-    allPeriods.forEach(p => selectedCompareIds.add(p.id));
-    localStorage.setItem('wt_compare_ids', JSON.stringify([...selectedCompareIds]));
+    const saved = ensureSettings().compareIds;
+    if (Array.isArray(saved) && saved.length > 0) {
+      saved.forEach(id => selectedCompareIds.add(Number(id)));
+    } else {
+      allPeriods.forEach(p => selectedCompareIds.add(p.id));
+    }
+    ensureSettings().compareIds = [...selectedCompareIds];
   }
 
-  // Remove stale ids (deleted periods)
+  // Remove stale ids
   const validIds = new Set(allPeriods.map(p => p.id));
   [...selectedCompareIds].forEach(id => { if (!validIds.has(id)) selectedCompareIds.delete(id); });
 
-  // Render chips
+  // Chips
   selDiv.innerHTML = allPeriods.map((p, i) => {
     const color = PERIOD_COLORS[i % PERIOD_COLORS.length];
     const on    = selectedCompareIds.has(p.id);
@@ -2190,44 +2209,61 @@ function renderCompareChart() {
   }).join('');
 
   if (compareChart) { compareChart.destroy(); compareChart = null; }
+  legend.innerHTML = '';
 
   const periods = allPeriods.filter(p => selectedCompareIds.has(p.id));
-
   if (!periods.length) {
-    legend.innerHTML = '';
     const cw = document.querySelector('.hist-compare-chart');
-    cw.innerHTML = '<div class="cmp-no-data">Select at least one period above</div>';
+    cw.innerHTML = '<canvas id="histCompareChart"></canvas><div class="chart-select-overlay" id="cmpSelectOverlay"></div>';
     return;
   }
+
+  // Ensure canvas exists
   const chartWrap = document.querySelector('.hist-compare-chart');
   if (!chartWrap.querySelector('canvas')) {
-    chartWrap.innerHTML = '<canvas id="histCompareChart"></canvas>';
+    chartWrap.innerHTML = '<canvas id="histCompareChart"></canvas><div class="chart-select-overlay" id="cmpSelectOverlay"></div>';
   }
 
+  // Build datasets — scale dots by data density to avoid lag
   const datasets = periods.map((p, i) => {
-    // Assign color by global period index, not filtered index, for stable colors
     const globalIdx = allPeriods.findIndex(x => x.id === p.id);
-    const color = PERIOD_COLORS[globalIdx % PERIOD_COLORS.length];
-    const entries = Object.entries(db.weights)
+    const color     = PERIOD_COLORS[globalIdx % PERIOD_COLORS.length];
+    let entries     = Object.entries(db.weights)
       .filter(([d]) => periodContainsDate(p, d))
       .sort(([a],[b]) => a.localeCompare(b))
-      .map(([d, v]) => {
-        const dayOffset = Math.round((new Date(d) - new Date(p.start)) / 86400000);
-        return { x: dayOffset, y: parseFloat(v), date: d };
-      });
+      .map(([d, v]) => ({
+        x: Math.round((new Date(d) - new Date(p.start)) / 86400000),
+        y: parseFloat(v), date: d
+      }));
+
+    // Apply zoom: filter to day range if zoomed
+    if (cmpZoomState) {
+      entries = entries.filter(e => e.x >= cmpZoomState.dayStart && e.x <= cmpZoomState.dayEnd);
+    }
+
+    const n = entries.length;
+    const pointRadius = n > 120 ? 0 : n > 60 ? 1 : n > 30 ? 2 : 3;
+
     return {
-      label: p.name,
-      data: entries,
-      borderColor: color,
-      backgroundColor: color + '18',
+      label: p.name, data: entries,
+      borderColor: color, backgroundColor: color + '12',
       pointBackgroundColor: color,
-      pointRadius: 4, pointHoverRadius: 7,
-      borderWidth: 2, tension: 0.3, fill: false,
+      pointRadius, pointHoverRadius: pointRadius + 3,
+      pointHitRadius: Math.max(6, pointRadius + 4),
+      borderWidth: 1.5, tension: 0.35, fill: false,
       parsing: { xAxisKey: 'x', yAxisKey: 'y' },
     };
   });
 
-  legend.innerHTML = '';  // chips replace the old legend
+  // Zoom bar
+  const zoomBar   = document.getElementById('cmpZoomBar');
+  const zoomLabel = document.getElementById('cmpZoomLabel');
+  if (cmpZoomState) {
+    zoomBar.classList.add('visible');
+    zoomLabel.innerHTML = `<b>Day ${cmpZoomState.dayStart}</b> — <b>Day ${cmpZoomState.dayEnd}</b>`;
+  } else {
+    zoomBar.classList.remove('visible');
+  }
 
   const ctx = document.getElementById('histCompareChart').getContext('2d');
   compareChart = new Chart(ctx, {
@@ -2235,60 +2271,135 @@ function renderCompareChart() {
     data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 200 }, // shorter animation = less lag on mobile
       onClick: (event, elements) => {
         try {
-          if (!elements.length) return;
-          const el    = elements[0];
-          const ds    = datasets[el.datasetIndex];
-          const point = ds.data[el.index];
+          if (_cmpDragging || !elements.length) return;
+          const pt = datasets[elements[0].datasetIndex].data[elements[0].index];
           switchTab('tracker');
-          const dp = document.getElementById('datePicker');
-          // Clear period filter if date is outside active period
           if (activePeriodId) {
             const ap = getActivePeriod();
-            if (!periodContainsDate(ap, point.date)) clearViewingPeriod();
+            if (!periodContainsDate(ap, pt.date)) clearViewingPeriod();
           }
-          dp.value = point.date;
+          document.getElementById('datePicker').value = pt.date;
           render();
-          document.getElementById('weightInput').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } catch(err) {
-          console.error('[compare chart click]', err.message, err.stack);
-        }
+          document.getElementById('weightInput').scrollIntoView({ behavior:'smooth', block:'center' });
+        } catch(e) { console.error('[cmp click]', e); }
       },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: 'rgba(10,12,18,.95)',
-          titleFont: {family:'DM Mono',size:10},
-          bodyFont: {family:'DM Mono',size:12},
+          titleFont: {family:'DM Mono',size:10}, bodyFont: {family:'DM Mono',size:11},
           padding: 9, cornerRadius: 7,
+          filter: () => !_cmpDragging,
           callbacks: {
             title: items => {
-              const ds  = datasets[items[0].datasetIndex];
-              const pt  = ds.data[items[0].dataIndex];
+              const ds = datasets[items[0].datasetIndex];
+              const pt = ds.data[items[0].dataIndex];
               return `${ds.label}  ·  ${fmtDate(pt.date)}`;
             },
             label: items => ` ${items.raw.y} kg  (day ${items.raw.x})`,
-            afterLabel: () => '  ↗ Click to open this date',
+            afterLabel: () => '  ↗ Click · Drag to zoom',
           }
         }
       },
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: 'Day from period start', color: 'rgba(180,220,185,.3)', font:{family:'DM Mono',size:9} },
-          grid:  { color: 'rgba(120,220,140,.06)' },
-          ticks: { color: 'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9}, maxTicksLimit: 8,
-                   callback: v => 'Day ' + v }
+          min: cmpZoomState ? cmpZoomState.dayStart : undefined,
+          max: cmpZoomState ? cmpZoomState.dayEnd   : undefined,
+          title: { display: true, text: 'Day from period start',
+                   color:'rgba(180,220,185,.3)', font:{family:'DM Mono',size:9} },
+          grid:  { color:'rgba(120,220,140,.05)' },
+          ticks: { color:'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9},
+                   maxTicksLimit:8, callback: v => 'Day ' + v }
         },
         y: {
-          grid:  { color: 'rgba(120,220,140,.06)' },
-          ticks: { color: 'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9}, maxTicksLimit: 6,
-                   callback: v => v + ' kg' }
+          grid:  { color:'rgba(120,220,140,.05)' },
+          ticks: { color:'rgba(180,220,185,.35)', font:{family:'DM Mono',size:9},
+                   maxTicksLimit:5, callback: v => v + ' kg' }
         }
       }
     }
   });
+
+  // Drag-to-zoom
+  setupCompareDragZoom(document.getElementById('histCompareChart'));
+}
+
+function setupCompareDragZoom(canvas) {
+  if (!canvas) return;
+  const overlay = document.getElementById('cmpSelectOverlay');
+
+  function clientXToDayOffset(clientX) {
+    const scale = compareChart && compareChart.scales && compareChart.scales.x;
+    if (!scale) return 0;
+    const rect = canvas.getBoundingClientRect();
+    return Math.round(scale.getValueForPixel(clientX - rect.left) ?? 0);
+  }
+
+  function showOverlay(startX, curX) {
+    const scale = compareChart && compareChart.scales && compareChart.scales.x;
+    if (!scale) return;
+    const rect = canvas.getBoundingClientRect();
+    const aL = scale.left, aR = scale.right;
+    const x1 = Math.max(aL, Math.min(aR, startX - rect.left));
+    const x2 = Math.max(aL, Math.min(aR, curX   - rect.left));
+    overlay.style.left    = Math.min(x1,x2) + 'px';
+    overlay.style.width   = Math.abs(x2-x1) + 'px';
+    overlay.style.display = 'block';
+  }
+
+  function clearOverlay() { overlay.style.display = 'none'; }
+
+  if (canvas._cmpHandlers) {
+    canvas.removeEventListener('pointerdown',   canvas._cmpHandlers.down);
+    canvas.removeEventListener('pointermove',   canvas._cmpHandlers.move);
+    canvas.removeEventListener('pointerup',     canvas._cmpHandlers.up);
+    canvas.removeEventListener('pointercancel', canvas._cmpHandlers.cancel);
+  }
+
+  function onDown(e) {
+    _cmpDragging      = true;
+    _cmpDragStartX    = e.clientX;
+    _cmpDragStartDay  = clientXToDayOffset(e.clientX);
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!_cmpDragging) return;
+    showOverlay(_cmpDragStartX, e.clientX);
+    e.preventDefault();
+  }
+  function onUp(e) {
+    if (!_cmpDragging) return;
+    _cmpDragging = false;
+    clearOverlay();
+    const endDay = clientXToDayOffset(e.clientX);
+    const lo = Math.min(_cmpDragStartDay, endDay);
+    const hi = Math.max(_cmpDragStartDay, endDay);
+    if (hi - lo < 1) return; // tap, not drag
+    cmpZoomState = { dayStart: lo, dayEnd: hi };
+    renderCompareChart();
+  }
+  function onCancel() { _cmpDragging = false; clearOverlay(); }
+
+  canvas._cmpHandlers = { down:onDown, move:onMove, up:onUp, cancel:onCancel };
+  canvas.addEventListener('pointerdown',   onDown);
+  canvas.addEventListener('pointermove',   onMove);
+  canvas.addEventListener('pointerup',     onUp);
+  canvas.addEventListener('pointercancel', onCancel);
+}
+
+function resetCompareZoom() {
+  cmpZoomState   = null;
+  _cmpDragging   = false;
+  _cmpDragStartX = null;
+  const ov = document.getElementById('cmpSelectOverlay');
+  if (ov) ov.style.display = 'none';
+  document.getElementById('cmpZoomBar').classList.remove('visible');
+  renderCompareChart();
 }
 
 // ============================================================
