@@ -431,7 +431,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .hist-compare-legend{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 12px}
 .hcl-item{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(180,220,185,.55)}
 .hcl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.hist-compare-chart{height:200px;padding:0 12px 12px}
+.hist-compare-chart{height:200px;padding:0;position:relative}
 .hist-compare-empty{padding:24px;text-align:center;color:rgba(180,220,185,.22);font-size:12px}
 
 
@@ -625,6 +625,17 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
 /* Prevent page scroll during chart drag on mobile */
 #weightChart, #histCompareChart { touch-action: none; user-select: none; }
+
+
+/* zoom select mode */
+.zoom-mode-hint{
+  display:none;position:absolute;top:6px;right:8px;z-index:3;
+  background:rgba(120,220,140,.15);border:1px solid rgba(120,220,140,.3);
+  color:#78dc8c;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.5px;
+  padding:3px 9px;border-radius:6px;pointer-events:none;
+}
+.zoom-select-active .zoom-mode-hint{display:block}
+.zoom-select-active canvas{cursor:crosshair}
 
 /* flash */
 #flash{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#0f1f14;border:1px solid #78dc8c;color:#78dc8c;padding:10px 22px;border-radius:30px;font-size:13px;z-index:999;white-space:nowrap;transition:opacity .2s}
@@ -831,6 +842,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
       <div class="chart-zoom-wrap" id="chartZoomWrap">
         <canvas id="weightChart"></canvas>
         <div class="chart-select-overlay" id="chartSelectOverlay"></div>
+        <div class="zoom-mode-hint">✦ Drag to select range</div>
       </div>
       <div class="chart-zoom-bar" id="chartZoomBar">
         <span class="chart-zoom-label" id="chartZoomLabel">Zoomed view</span>
@@ -944,9 +956,10 @@ input::placeholder{color:rgba(180,220,185,.3)}
     </div>
     <div class="hist-compare-selector" id="cmpSelector"></div>
     <div class="hist-compare-legend" id="histCompareLegend"></div>
-    <div class="hist-compare-chart" style="position:relative">
+    <div class="hist-compare-chart">
       <canvas id="histCompareChart"></canvas>
       <div class="chart-select-overlay" id="cmpSelectOverlay"></div>
+      <div class="zoom-mode-hint">✦ Drag to select range</div>
     </div>
     <div class="chart-zoom-bar" id="cmpZoomBar" style="margin:0 12px 10px">
       <span class="chart-zoom-label" id="cmpZoomLabel"></span>
@@ -2448,63 +2461,73 @@ function renderCompareChart() {
 function setupCompareDragZoom(canvas) {
   if (!canvas) return;
   const overlay = document.getElementById('cmpSelectOverlay');
+  const wrap    = canvas.closest('.hist-compare-chart') || canvas.parentElement;
 
-  function clientXToDayOffset(clientX) {
+  function toDayOffset(clientX) {
     const scale = compareChart && compareChart.scales && compareChart.scales.x;
     if (!scale) return 0;
-    const rect = canvas.getBoundingClientRect();
-    return Math.round(scale.getValueForPixel(clientX - rect.left) ?? 0);
+    return Math.round(scale.getValueForPixel(clientX - canvas.getBoundingClientRect().left) ?? 0);
   }
 
-  function showOverlay(startX, curX) {
+  // Overlay is inside .hist-compare-chart (same element as canvas parent).
+  // canvas.getBoundingClientRect() gives the canvas position in viewport.
+  // wrap.getBoundingClientRect() gives the container position.
+  // overlay.style.left must be relative to the wrap — so offset = canvasRect.left - wrapRect.left
+  function showOverlay(startCX, curCX) {
     const scale = compareChart && compareChart.scales && compareChart.scales.x;
     if (!scale) return;
-    const rect = canvas.getBoundingClientRect();
-    const aL = scale.left, aR = scale.right;
-    const x1 = Math.max(aL, Math.min(aR, startX - rect.left));
-    const x2 = Math.max(aL, Math.min(aR, curX   - rect.left));
-    overlay.style.left    = Math.min(x1,x2) + 'px';
+    const canvasRect = canvas.getBoundingClientRect();
+    const wrapRect   = wrap.getBoundingClientRect();
+    const offsetX    = canvasRect.left - wrapRect.left; // accounts for any padding
+    const x1 = Math.max(scale.left, Math.min(scale.right, startCX - canvasRect.left));
+    const x2 = Math.max(scale.left, Math.min(scale.right, curCX   - canvasRect.left));
+    overlay.style.left    = (Math.min(x1,x2) + offsetX) + 'px';
     overlay.style.width   = Math.abs(x2-x1) + 'px';
     overlay.style.display = 'block';
   }
 
   function clearOverlay() { overlay.style.display = 'none'; }
 
-  if (canvas._cmpHandlers) {
-    canvas.removeEventListener('pointerdown',   canvas._cmpHandlers.down);
-    canvas.removeEventListener('pointermove',   canvas._cmpHandlers.move);
-    canvas.removeEventListener('pointerup',     canvas._cmpHandlers.up);
-    canvas.removeEventListener('pointercancel', canvas._cmpHandlers.cancel);
+  function activateCmpZoom() {
+    _cmpZoomMode = true;
+    wrap.classList.add('zoom-select-active');
+  }
+  function deactivateCmpZoom() {
+    _cmpZoomMode = false;
+    wrap.classList.remove('zoom-select-active');
+    clearOverlay();
   }
 
-  function getCmpClientX(e) {
-    if (e.touches && e.touches.length) return e.touches[0].clientX;
-    if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0].clientX;
-    return e.clientX;
-  }
-
-  function startCmpDrag(clientX) {
-    _cmpDragging     = true;
-    _cmpDragStartX   = clientX;
-    _cmpDragStartDay = clientXToDayOffset(clientX);
-  }
-
-  function finishCmpDrag(clientX) {
+  function finishCmpDrag(endCX) {
     _cmpDragging = false; clearOverlay();
-    const endDay = clientXToDayOffset(clientX);
+    const endDay = toDayOffset(endCX);
     const lo = Math.min(_cmpDragStartDay, endDay);
     const hi = Math.max(_cmpDragStartDay, endDay);
+    deactivateCmpZoom();
     if (hi - lo < 1) return;
     cmpZoomState = { dayStart: lo, dayEnd: hi };
     renderCompareChart();
   }
 
-  // Pointer events (mouse)
+  if (canvas._cmpHandlers) {
+    canvas.removeEventListener('pointerdown',   canvas._cmpHandlers.down);
+    canvas.removeEventListener('pointermove',   canvas._cmpHandlers.move);
+    canvas.removeEventListener('pointerup',     canvas._cmpHandlers.up);
+    canvas.removeEventListener('pointercancel', canvas._cmpHandlers.cancel);
+    if (canvas._cmpTouchHandlers) {
+      canvas.removeEventListener('touchstart', canvas._cmpTouchHandlers.start);
+      canvas.removeEventListener('touchmove',  canvas._cmpTouchHandlers.move);
+      canvas.removeEventListener('touchend',   canvas._cmpTouchHandlers.end);
+    }
+  }
+
+  // ── Mouse: always drag immediately ──────────────────────────────────────────
   function onDown(e) {
     if (e.pointerType === 'touch') return;
-    startCmpDrag(e.clientX);
-    canvas.setPointerCapture(e.pointerId);
-    e.preventDefault();
+    activateCmpZoom();
+    _cmpDragging = true; _cmpDragStartX = e.clientX;
+    _cmpDragStartDay = toDayOffset(e.clientX);
+    canvas.setPointerCapture(e.pointerId); e.preventDefault();
   }
   function onMove(e) {
     if (e.pointerType === 'touch' || !_cmpDragging) return;
@@ -2516,31 +2539,48 @@ function setupCompareDragZoom(canvas) {
   }
   function onCancel(e) {
     if (e.pointerType === 'touch') return;
-    _cmpDragging = false; clearOverlay();
+    _cmpDragging = false; deactivateCmpZoom();
   }
 
-  canvas._cmpHandlers = { down:onDown, move:onMove, up:onUp, cancel:onCancel };
+  // ── Touch: double-tap activates, then drag selects ───────────────────────────
+  let _cmpLastTap = 0;
+  function onTouchStart(e) {
+    const now = Date.now();
+    const cx  = e.touches[0].clientX;
+    if (!_cmpZoomMode) {
+      if (now - _cmpLastTap < 350) {
+        activateCmpZoom();
+        _cmpLastTap = 0;
+        e.preventDefault();
+      } else {
+        _cmpLastTap = now;
+      }
+      return;
+    }
+    _cmpDragging = true; _cmpDragStartX = cx;
+    _cmpDragStartDay = toDayOffset(cx);
+    e.preventDefault();
+  }
+  function onTouchMove(e) {
+    if (!_cmpDragging || !_cmpZoomMode) return;
+    showOverlay(_cmpDragStartX, e.touches[0].clientX);
+    e.preventDefault();
+  }
+  function onTouchEnd(e) {
+    if (!_cmpDragging || !_cmpZoomMode) return;
+    finishCmpDrag(e.changedTouches[0].clientX);
+    e.preventDefault();
+  }
+
+  canvas._cmpHandlers      = { down:onDown, move:onMove, up:onUp, cancel:onCancel };
+  canvas._cmpTouchHandlers = { start:onTouchStart, move:onTouchMove, end:onTouchEnd };
   canvas.addEventListener('pointerdown',   onDown);
   canvas.addEventListener('pointermove',   onMove);
   canvas.addEventListener('pointerup',     onUp);
   canvas.addEventListener('pointercancel', onCancel);
-
-  // Touch events (mobile)
-  canvas.addEventListener('touchstart', function(e) {
-    startCmpDrag(getCmpClientX(e));
-    e.preventDefault();
-  }, { passive: false });
-  canvas.addEventListener('touchmove', function(e) {
-    if (!_cmpDragging) return;
-    showOverlay(_cmpDragStartX, getCmpClientX(e));
-    e.preventDefault();
-  }, { passive: false });
-  canvas.addEventListener('touchend', function(e) {
-    if (!_cmpDragging) return;
-    finishCmpDrag(getCmpClientX(e));
-    e.preventDefault();
-  }, { passive: false });
-  canvas.addEventListener('touchcancel', function() { _cmpDragging = false; clearOverlay(); });
+  canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+  canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+  canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
 }
 
 function resetCompareZoom() {
@@ -3510,89 +3550,133 @@ function startDayBackground() {
 let chartZoomState = null;  // { startIdx, endIdx } or null = full view
 let _allWeightEntries = []; // cache of all entries for current view
 
-let _dragStartX  = null;    // pixel x where drag began
+let _dragStartX   = null;
 let _dragStartIdx = null;
-let _isDragging  = false;
+let _isDragging   = false;
+let _wZoomMode    = false;  // double-tap activated zoom mode (weight chart)
+let _cmpZoomMode  = false;  // double-tap activated zoom mode (compare chart)
+let _lastTapTime  = 0;      // for double-tap detection
 
 function setupChartDragZoom(canvas, entries) {
   _allWeightEntries = entries;
   const overlay = document.getElementById('chartSelectOverlay');
+  const wrap    = document.getElementById('chartZoomWrap');
 
-  // Use Chart.js's own scale.getValueForPixel() — the only reliable way to
-  // convert a pixel position to a data index. It handles DPR, CSS scaling, padding.
   function clientXToIndex(clientX) {
-    const scale   = wChart && wChart.scales && wChart.scales.x;
+    const scale = wChart && wChart.scales && wChart.scales.x;
     if (!scale) return 0;
-    const rect    = canvas.getBoundingClientRect();
-    // Chart.js scale works in canvas CSS pixels (same coordinate space as getBoundingClientRect)
-    const canvasX = clientX - rect.left;
-    const raw     = scale.getValueForPixel(canvasX);
+    const raw = scale.getValueForPixel(clientX - canvas.getBoundingClientRect().left);
     return Math.round(Math.max(0, Math.min(entries.length - 1, raw ?? 0)));
   }
 
-  // Overlay is positioned inside the .chart-zoom-wrap which is the canvas's parent.
-  // We clamp to the scale's actual pixel range so it never overflows the plot area.
-  function showOverlay(startClientX, curClientX) {
+  // Overlay sits inside .chart-zoom-wrap (same coords as canvas since canvas is absolute-inset)
+  function showOverlay(startCX, curCX) {
     const scale = wChart && wChart.scales && wChart.scales.x;
     if (!scale) return;
-    const rect  = canvas.getBoundingClientRect();
-    // scale.left / scale.right are in canvas CSS pixel coords
-    const aL    = scale.left;
-    const aR    = scale.right;
-    const x1    = Math.max(aL, Math.min(aR, startClientX - rect.left));
-    const x2    = Math.max(aL, Math.min(aR, curClientX   - rect.left));
-    overlay.style.left    = Math.min(x1, x2) + 'px';
-    overlay.style.width   = Math.abs(x2 - x1) + 'px';
+    const rect = canvas.getBoundingClientRect();
+    const x1 = Math.max(scale.left, Math.min(scale.right, startCX - rect.left));
+    const x2 = Math.max(scale.left, Math.min(scale.right, curCX   - rect.left));
+    overlay.style.left    = Math.min(x1,x2) + 'px';
+    overlay.style.width   = Math.abs(x2-x1) + 'px';
     overlay.style.display = 'block';
   }
 
   function clearOverlay() { overlay.style.display = 'none'; }
 
-  // Remove previous listeners before re-attaching (called every renderWeightChart)
+  function activateZoomMode() {
+    _wZoomMode = true;
+    wrap.classList.add('zoom-select-active');
+  }
+  function deactivateZoomMode() {
+    _wZoomMode = false;
+    wrap.classList.remove('zoom-select-active');
+    clearOverlay();
+  }
+
+  function finishDrag(endCX) {
+    _isDragging = false; clearOverlay();
+    const lo = Math.min(_dragStartIdx, clientXToIndex(endCX));
+    const hi = Math.max(_dragStartIdx, clientXToIndex(endCX));
+    deactivateZoomMode();
+    if (hi - lo < 1) return;
+    chartZoomState = { startIdx: lo, endIdx: hi };
+    renderWeightChart();
+  }
+
   if (canvas._zoomHandlers) {
     canvas.removeEventListener('pointerdown',   canvas._zoomHandlers.down);
     canvas.removeEventListener('pointermove',   canvas._zoomHandlers.move);
     canvas.removeEventListener('pointerup',     canvas._zoomHandlers.up);
     canvas.removeEventListener('pointercancel', canvas._zoomHandlers.cancel);
+    if (canvas._zoomTouchHandlers) {
+      canvas.removeEventListener('touchstart', canvas._zoomTouchHandlers.start);
+      canvas.removeEventListener('touchmove',  canvas._zoomTouchHandlers.move);
+      canvas.removeEventListener('touchend',   canvas._zoomTouchHandlers.end);
+    }
   }
 
-  function onPointerDown(e) {
-    _isDragging   = true;
-    _dragStartX   = e.clientX;
+  // ── Mouse: always drag immediately ──────────────────────────────────────────
+  function onDown(e) {
+    if (e.pointerType === 'touch') return;
+    activateZoomMode();
+    _isDragging = true; _dragStartX = e.clientX;
     _dragStartIdx = clientXToIndex(e.clientX);
-    canvas.setPointerCapture(e.pointerId);
+    canvas.setPointerCapture(e.pointerId); e.preventDefault();
+  }
+  function onMove(e) {
+    if (e.pointerType === 'touch' || !_isDragging) return;
+    showOverlay(_dragStartX, e.clientX); e.preventDefault();
+  }
+  function onUp(e) {
+    if (e.pointerType === 'touch' || !_isDragging) return;
+    finishDrag(e.clientX);
+  }
+  function onCancel(e) {
+    if (e.pointerType === 'touch') return;
+    _isDragging = false; deactivateZoomMode();
+  }
+
+  // ── Touch: double-tap activates mode, then drag selects ─────────────────────
+  function onTouchStart(e) {
+    const now = Date.now();
+    const cx  = e.touches[0].clientX;
+    if (!_wZoomMode) {
+      // Check for double-tap (< 350ms between taps)
+      if (now - _lastTapTime < 350) {
+        activateZoomMode();
+        _lastTapTime = 0;
+        e.preventDefault();
+      } else {
+        _lastTapTime = now;
+        // don't prevent — allow normal tap/scroll
+      }
+      return;
+    }
+    // Already in zoom mode — start drag
+    _isDragging = true; _dragStartX = cx;
+    _dragStartIdx = clientXToIndex(cx);
+    e.preventDefault();
+  }
+  function onTouchMove(e) {
+    if (!_isDragging || !_wZoomMode) return;
+    showOverlay(_dragStartX, e.touches[0].clientX);
+    e.preventDefault();
+  }
+  function onTouchEnd(e) {
+    if (!_isDragging || !_wZoomMode) { return; }
+    finishDrag(e.changedTouches[0].clientX);
     e.preventDefault();
   }
 
-  function onPointerMove(e) {
-    if (!_isDragging) return;
-    showOverlay(_dragStartX, e.clientX);
-    e.preventDefault();
-  }
-
-  function onPointerUp(e) {
-    if (!_isDragging) return;
-    _isDragging = false;
-    clearOverlay();
-
-    const endIdx = clientXToIndex(e.clientX);
-    const lo = Math.min(_dragStartIdx, endIdx);
-    const hi = Math.max(_dragStartIdx, endIdx);
-
-    // Require at least 2 data points; otherwise treat as a tap/click
-    if (hi - lo < 1) return;
-
-    chartZoomState = { startIdx: lo, endIdx: hi };
-    renderWeightChart();
-  }
-
-  function onCancel() { _isDragging = false; clearOverlay(); }
-
-  canvas._zoomHandlers = { down: onPointerDown, move: onPointerMove, up: onPointerUp, cancel: onCancel };
-  canvas.addEventListener('pointerdown',   onPointerDown);
-  canvas.addEventListener('pointermove',   onPointerMove);
-  canvas.addEventListener('pointerup',     onPointerUp);
+  canvas._zoomHandlers      = { down:onDown, move:onMove, up:onUp, cancel:onCancel };
+  canvas._zoomTouchHandlers = { start:onTouchStart, move:onTouchMove, end:onTouchEnd };
+  canvas.addEventListener('pointerdown',   onDown);
+  canvas.addEventListener('pointermove',   onMove);
+  canvas.addEventListener('pointerup',     onUp);
   canvas.addEventListener('pointercancel', onCancel);
+  canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+  canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+  canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
 }
 
 function resetChartZoom() {
