@@ -1171,6 +1171,53 @@ function refreshTokenThenRetry() {
   });
 }
 
+
+// ============================================================
+//  DB MERGE  (union of local + remote, never discard data)
+// ============================================================
+function mergeDbData(local, remote) {
+  // Weights: keep all dates from both; remote wins if same date exists in both
+  const weights = Object.assign({}, local.weights || {}, remote.weights || {});
+
+  // Calories: per-date, union of entries by id; append local entries missing from remote
+  const calories = {};
+  const allCalDates = new Set([
+    ...Object.keys(local.calories  || {}),
+    ...Object.keys(remote.calories || {}),
+  ]);
+  for (const date of allCalDates) {
+    const localEntries  = (local.calories  || {})[date] || [];
+    const remoteEntries = (remote.calories || {})[date] || [];
+    // Start with remote entries, then append any local entries not in remote (by id)
+    const remoteIds = new Set(remoteEntries.map(e => e.id));
+    const onlyLocal = localEntries.filter(e => !remoteIds.has(e.id));
+    calories[date]  = [...remoteEntries, ...onlyLocal];
+  }
+
+  // Notes: remote wins per date, but keep local notes for dates not in remote
+  const notes = Object.assign({}, local.notes || {}, remote.notes || {});
+
+  // Periods: union by id, remote wins on conflict
+  const localPeriods  = local.periods  || [];
+  const remotePeriods = remote.periods || [];
+  const periodMap = {};
+  localPeriods.forEach(p  => { periodMap[p.id] = p; });
+  remotePeriods.forEach(p => { periodMap[p.id] = p; }); // remote overwrites
+  const periods = Object.values(periodMap).sort((a,b) => b.start.localeCompare(a.start));
+
+  // Food DB: remote wins entirely (edits are deliberate and Drive should be source of truth)
+  const food = remote.food || local.food || { categories: [], items: [] };
+
+  // Settings: remote wins, but fill in any null fields from local
+  const settings = Object.assign(
+    { height: null, age: null, sex: 'm', calGoal: null },
+    local.settings  || {},
+    remote.settings || {}
+  );
+
+  return { weights, calories, notes, periods, food, settings };
+}
+
 // ============================================================
 //  DRIVE LOAD / SAVE
 // ============================================================
@@ -1185,20 +1232,34 @@ async function loadFromDrive() {
       if (!localStorage.getItem(HINT_KEY)) localStorage.setItem(HINT_KEY, '__authed__');
       document.getElementById('signOutBtn').style.display = 'block';
       const cr   = await fetch(`${DRIVE_API}/files/${driveFileId}?alt=media`, { headers: { Authorization: 'Bearer ' + accessToken } });
-      const data = await cr.json();
-      if (!data.food)     data.food     = { categories: [], items: [] };
-      if (!data.periods)  data.periods  = [];
-      if (!data.notes)    data.notes    = {};
-      if (!data.settings) data.settings = { height: null, age: null, sex: 'm', calGoal: null };
-      db = data;
+      const remote = await cr.json();
+      if (!remote.food)     remote.food     = { categories: [], items: [] };
+      if (!remote.periods)  remote.periods  = [];
+      if (!remote.notes)    remote.notes    = {};
+      if (!remote.settings) remote.settings = { height: null, age: null, sex: 'm', calGoal: null };
+
+      // ── Merge remote with local, never discard data ──────────────────────────
+      // Strategy: union of all dates/entries, remote wins on conflict EXCEPT
+      // if local has entries that remote doesn't have at all (offline edits).
+      const local = loadLocal(); // re-read from localStorage (may have newer data)
+      const merged = mergeDbData(local, remote);
+      db = merged;
+
+      // If merged differs from remote, push the merged version back to Drive
+      const mergedStr = JSON.stringify(merged);
+      const remoteStr = JSON.stringify(remote);
+      if (mergedStr !== remoteStr) {
+        console.log('[loadFromDrive] local had newer data — pushing merged to Drive');
+        setTimeout(saveToDrive, 500); // push after a short delay
+      }
+
       saveLocal();
       autoActivateCurrentPeriod();
-  renderSettings(); // must run after db is loaded from Drive
-  // Restore compare chart period selection from settings
-  const savedCmpIds = ensureSettings().compareIds;
-  if (Array.isArray(savedCmpIds) && savedCmpIds.length > 0) {
-    selectedCompareIds = new Set(savedCmpIds.map(Number));
-  }
+      renderSettings();
+      const savedCmpIds = ensureSettings().compareIds;
+      if (Array.isArray(savedCmpIds) && savedCmpIds.length > 0) {
+        selectedCompareIds = new Set(savedCmpIds.map(Number));
+      }
       render();
       setSyncStatus('ok', 'Synced with Drive', json.files[0].modifiedTime);
     } else {
