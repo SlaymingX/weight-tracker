@@ -25,7 +25,7 @@ body{
   min-height:100vh;overflow-x:hidden;
   /* Background is fully driven by JS updateDayBackground() via inline style on <body> */
   background:#070b0f;
-  transition:background 60s linear; /* smooth 1-minute crossfade between updates */
+  transition:background 30s linear;
 }
 
 /* ── Desktop centering ── */
@@ -544,7 +544,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
 
 /* timer box */
 .timer-label{font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#78dc8c;opacity:.7;margin-bottom:10px}
-.timer-value{font-family:'Syne',sans-serif;font-size:42px;font-weight:800;line-height:1;color:#e8f5ea}
+.timer-value{font-family:'Syne',sans-serif;font-size:42px;font-weight:800;line-height:1;color:#e8f5ea}.timer-unit{font-size:22px;opacity:.6;margin:0 2px}
 .timer-value span{font-size:22px;opacity:.6;margin-left:2px}
 .timer-sub{font-size:11px;color:rgba(180,220,185,.4);margin-top:6px;letter-spacing:.3px}
 .timer-phase-day  .timer-value{color:#78dc8c}
@@ -710,7 +710,7 @@ input::placeholder{color:rgba(180,220,185,.3)}
     <!-- TIMER -->
     <div class="section" id="timerBox">
       <div class="timer-label" id="timerLabel">Until 8 PM</div>
-      <div class="timer-value" id="timerValue">—<span>h</span></div>
+      <div class="timer-value"><span id="timerH">—</span><span class="timer-unit">h</span> <span id="timerM">—</span><span class="timer-unit">m</span></div>
       <div class="timer-sub"  id="timerSub"></div>
     </div>
 
@@ -1268,6 +1268,12 @@ async function loadFromDrive() {
 
       saveLocal();
       autoActivateCurrentPeriod();
+
+  // Register service worker for PWA caching
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
       renderSettings();
       const savedCmpIds = ensureSettings().compareIds;
       if (Array.isArray(savedCmpIds) && savedCmpIds.length > 0) {
@@ -1815,6 +1821,7 @@ function renderWeightChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 0 },
       // Disable built-in click when drag-selecting (pointerup handles it)
       onClick: (event, elements) => {
         try {
@@ -1883,6 +1890,7 @@ function renderCalChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      animation: { duration: 0 },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -2401,7 +2409,7 @@ function renderCompareChart() {
     data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      animation: { duration: 200 }, // shorter animation = less lag on mobile
+      animation: { duration: 0 }, // disabled — instant render on mobile
       onClick: (event, elements) => {
         try {
           if (_cmpDragging || !elements.length) return;
@@ -3238,46 +3246,34 @@ function autoActivateCurrentPeriod() {
 let timerInterval = null;
 
 function updateTimer() {
-  const now   = new Date();
-  const h     = now.getHours();
-  const m     = now.getMinutes();
-  const s     = now.getSeconds();
+  const now = new Date();
+  const h   = now.getHours();
+  const phase = (h >= 20 || h < 4) ? 'night' : 'day';
+  const targetH = phase === 'night' ? 4 : 20;
 
-  const box   = document.getElementById('timerBox');
-  const label = document.getElementById('timerLabel');
-  const val   = document.getElementById('timerValue');
-  const sub   = document.getElementById('timerSub');
-
-  let targetH, phase;
-
-  if (h >= 20 || h < 4) {
-    // Night phase — count down to 04:00
-    targetH = 4;
-    phase   = 'night';
-    label.textContent = 'Until 4 AM';
-  } else {
-    // Day phase — count down to 20:00
-    targetH = 20;
-    phase   = 'day';
-    label.textContent = 'Until 8 PM';
+  // Only touch DOM when phase changes
+  const box = document.getElementById('timerBox');
+  if (box._phase !== phase) {
+    box._phase = phase;
+    box.className = 'section timer-phase-' + phase;
+    document.getElementById('timerLabel').textContent = phase === 'night' ? 'Until 4 AM' : 'Until 8 PM';
   }
 
-  box.className = 'section timer-phase-' + phase;
-
-  // Seconds until target
   let target = new Date(now);
   target.setHours(targetH, 0, 0, 0);
   if (target <= now) target.setDate(target.getDate() + 1);
 
-  const diffS   = Math.round((target - now) / 1000);
-  const remH    = Math.floor(diffS / 3600);
-  const remM    = Math.floor((diffS % 3600) / 60);
-  const remS    = diffS % 60;
+  const diffS = Math.round((target - now) / 1000);
+  const remH  = Math.floor(diffS / 3600);
+  const remM  = Math.floor((diffS % 3600) / 60);
+  const remS  = diffS % 60;
 
-  val.innerHTML = `${remH}<span>h</span> ${String(remM).padStart(2,'0')}<span>m</span>`;
-  sub.textContent = phase === 'night'
+  // Set individual text nodes — avoids full innerHTML parse each second
+  document.getElementById('timerH').textContent = remH;
+  document.getElementById('timerM').textContent = String(remM).padStart(2,'0');
+  document.getElementById('timerSub').textContent = phase === 'night'
     ? 'Late night — time to rest 🌙'
-    : `${String(remH).padStart(2,'0')}:${String(remM).padStart(2,'0')}:${String(remS).padStart(2,'0')} remaining`;
+    : String(remH).padStart(2,'0') + ':' + String(remM).padStart(2,'0') + ':' + String(remS).padStart(2,'0') + ' remaining';
 }
 
 function startTimer() {
@@ -3532,14 +3528,15 @@ function updateDayBackground() {
 }
 
 function startDayBackground() {
-  updateDayBackground(); // apply immediately
+  if (document.visibilityState !== 'hidden') updateDayBackground();
 
-  // Recalculate every minute so the transition stays accurate
   const now = new Date();
   const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
   setTimeout(() => {
-    updateDayBackground();
-    setInterval(updateDayBackground, 60000);
+    if (document.visibilityState !== 'hidden') updateDayBackground();
+    setInterval(() => {
+      if (document.visibilityState !== 'hidden') updateDayBackground();
+    }, 60000);
   }, msToNextMinute);
 }
 
@@ -3691,13 +3688,29 @@ function resetChartZoom() {
 // ============================================================
 //  RENDER ALL
 // ============================================================
+let _lastRenderHash = '';
+
 function render() {
   updateActivePeriodBanner();
   updateDatePickerConstraints();
   renderCalories();
   renderWeight();
-  renderWeightChart();
-  renderCalChart();
+
+  // Only rebuild Chart.js instances when data actually changed
+  const date  = getDate();
+  const hash  = JSON.stringify({
+    w: db.weights,
+    c: db.calories,
+    date,
+    pid: activePeriodId,
+    zoom: chartZoomState,
+  });
+  if (hash !== _lastRenderHash) {
+    _lastRenderHash = hash;
+    renderWeightChart();
+    renderCalChart();
+  }
+
   renderNotes();
 }
 function updateActivePeriodBanner() {
@@ -3742,7 +3755,11 @@ function clearViewingPeriod() {
 // ============================================================
 (function init(){
   document.getElementById('datePicker').value = todayStr();
-  document.getElementById('datePicker').addEventListener('change', render);
+  document.getElementById('datePicker').addEventListener('change', () => {
+    // Small debounce so rapid arrow-key navigation doesn't thrash chart rebuilds
+    clearTimeout(render._dpTimer);
+    render._dpTimer = setTimeout(render, 80);
+  });
   checkLateBanner();
   setInterval(checkLateBanner, 60000); // re-check every minute
   startTimer();
@@ -3750,6 +3767,12 @@ function clearViewingPeriod() {
   document.getElementById('weightInput').addEventListener('keydown', e => { if(e.key==='Enter') saveWeight(); });
 
   autoActivateCurrentPeriod();
+
+  // Register service worker for PWA caching
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
 
   // New server-side auth — always start auth on load, no Client ID needed
   startAuth();
