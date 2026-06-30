@@ -3527,17 +3527,39 @@ function updateDayBackground() {
   document.documentElement.style.background = th.base;
 }
 
-function startDayBackground() {
-  if (document.visibilityState !== 'hidden') updateDayBackground();
+let _dayBgInterval   = null;
+let _dayBgLastMinute = -1;
 
-  const now = new Date();
-  const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
-  setTimeout(() => {
-    if (document.visibilityState !== 'hidden') updateDayBackground();
-    setInterval(() => {
-      if (document.visibilityState !== 'hidden') updateDayBackground();
-    }, 60000);
-  }, msToNextMinute);
+function startDayBackground() {
+  updateDayBackground();
+  _dayBgLastMinute = new Date().getMinutes();
+
+  // Self-correcting interval — checks every 15s whether the minute changed,
+  // instead of relying on a single setTimeout chain that can die if the
+  // tab is suspended/throttled by the OS while backgrounded.
+  clearInterval(_dayBgInterval);
+  _dayBgInterval = setInterval(() => {
+    const nowMinute = new Date().getMinutes();
+    if (nowMinute !== _dayBgLastMinute) {
+      _dayBgLastMinute = nowMinute;
+      updateDayBackground();
+    }
+  }, 15000);
+
+  // Catch up immediately whenever the tab becomes visible again —
+  // covers the case where timers were fully suspended while backgrounded.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      updateDayBackground();
+      _dayBgLastMinute = new Date().getMinutes();
+    }
+  });
+
+  // Also catch up on pageshow (covers PWA resume from app switcher on Android)
+  window.addEventListener('pageshow', () => {
+    updateDayBackground();
+    _dayBgLastMinute = new Date().getMinutes();
+  });
 }
 
 
