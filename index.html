@@ -1218,8 +1218,18 @@ function mergeDbData(local, remote) {
   remotePeriods.forEach(p => { periodMap[p.id] = p; }); // remote overwrites
   const periods = Object.values(periodMap).sort((a,b) => b.start.localeCompare(a.start));
 
-  // Food DB: remote wins entirely (edits are deliberate and Drive should be source of truth)
-  const food = remote.food || local.food || { categories: [], items: [] };
+  // Food DB: union by id (categories & items), remote wins per-id on conflict.
+  // (Never blindly replace — a stale/empty remote must not erase local-only entries.)
+  const catMap = {};
+  (local.food && local.food.categories || []).forEach(c => { catMap[c.id] = c; });
+  (remote.food && remote.food.categories || []).forEach(c => { catMap[c.id] = c; }); // remote wins on same id
+  const itemMap = {};
+  (local.food && local.food.items || []).forEach(i => { itemMap[i.id] = i; });
+  (remote.food && remote.food.items || []).forEach(i => { itemMap[i.id] = i; }); // remote wins on same id
+  const food = {
+    categories: Object.values(catMap),
+    items:      Object.values(itemMap),
+  };
 
   // Settings: remote wins, but fill in any null fields from local
   const settings = Object.assign(
@@ -1392,6 +1402,19 @@ function save() {
   clearTimeout(save._timer);
   save._timer = setTimeout(saveToDrive, 1500);
 }
+
+// Flush any pending debounced save right away when the tab/app is backgrounded
+// or closed — otherwise switching devices before the 1.5s debounce fires means
+// the latest entry (e.g. today's weight) never reaches Drive in time.
+function flushPendingSave() {
+  if (save._timer) {
+    clearTimeout(save._timer);
+    save._timer = null;
+    saveToDrive();
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushPendingSave(); });
+window.addEventListener('pagehide', flushPendingSave);
 
 // ============================================================
 //  TAB SWITCHING
