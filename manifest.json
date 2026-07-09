@@ -6,8 +6,8 @@
   "scope": "/weight-tracker/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#080b10",
-  "theme_color": "#080b10",
+  "background_color": "#0a1a12",
+  "theme_color": "#0a1a12",
   "icons": [
     {
       "src": "appicon.png",
