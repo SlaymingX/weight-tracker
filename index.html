@@ -3530,6 +3530,29 @@ function getDayTheme() {
   };
 }
 
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const num = parseInt(hex, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+// Approximates the actual visible color at the very top of the screen by
+// compositing the base color with the top-left radial glow (o1), since the
+// status bar can only be a flat color and th.base alone is darker than
+// what's really rendered up there.
+function topStripColor(th) {
+  const [r, g, b, a] = th.o1.split(',').map(Number);
+  const base = hexToRgb(th.base);
+  return rgbToHex(
+    r * a + base.r * (1 - a),
+    g * a + base.g * (1 - a),
+    b * a + base.b * (1 - a)
+  );
+}
+
 function updateDayBackground() {
   const th = getDayTheme();
   document.body.style.background = `
@@ -3552,7 +3575,7 @@ function updateDayBackground() {
   // Keep the Android/PWA status bar in sync with the current background
   // (theme-color is otherwise static and causes a mismatched black strip up top)
   const themeMeta = document.getElementById('themeColorMeta');
-  if (themeMeta) themeMeta.setAttribute('content', th.base);
+  if (themeMeta) themeMeta.setAttribute('content', topStripColor(th));
 }
 
 let _dayBgInterval   = null;
