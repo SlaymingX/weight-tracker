@@ -129,10 +129,16 @@ input::placeholder{color:rgba(180,220,185,.3)}
 .sug-more:hover{background:rgba(120,220,140,.05);color:#78dc8c}
 
 .entries{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto}
-.entry{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.08);border-radius:9px;padding:10px 12px}
-.entry-left{display:flex;flex-direction:column;gap:2px}
-.entry-time{color:rgba(180,220,185,.4);font-size:10px}
+.entry{display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.08);border-radius:9px;padding:10px 12px}
+.entry-left{display:flex;flex-direction:column;gap:2px;min-width:0}
+.entry-time{color:rgba(180,220,185,.4);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .entry-val{font-size:15px;font-weight:500}
+.entry-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.mult-controls{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.03);border:1px solid rgba(120,220,140,.15);border-radius:8px;padding:3px 5px}
+.btn-mult{background:none;border:1px solid rgba(120,220,140,.3);color:#78dc8c;border-radius:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;font-family:'DM Mono',monospace;padding:0;line-height:1;flex-shrink:0}
+.btn-mult:hover{background:rgba(120,220,140,.12)}
+.btn-mult:disabled{opacity:.25;cursor:default}
+.mult-badge{font-size:10.5px;color:rgba(180,220,185,.65);min-width:18px;text-align:center;font-family:'DM Mono',monospace;letter-spacing:.3px}
 
 .divider{border-top:1px solid rgba(120,220,140,.08);margin-top:16px;padding-top:14px}
 .sub-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(120,220,140,.5);margin-bottom:10px}
@@ -1609,7 +1615,7 @@ function selectSuggestion(item) {
   // Directly add the portion kcal as a calorie entry, with the food name
   const date = getDate();
   if (!db.calories[date]) db.calories[date] = [];
-  db.calories[date].push({ id: Date.now(), amount: item.kcalPortion, time: nowTime(), label: item.name });
+  db.calories[date].push({ id: Date.now(), amount: item.kcalPortion, base: item.kcalPortion, mult: 1, time: nowTime(), label: item.name });
   document.getElementById('calInput').value = '';
   save();
   renderCalories();
@@ -1654,7 +1660,7 @@ function addCalories() {
   const amount = calBurnMode ? -Math.round(val) : Math.round(val);
   const label  = calBurnMode ? '🔥 Burned' : undefined;
   if (!db.calories[date]) db.calories[date] = [];
-  db.calories[date].push({ id: Date.now(), amount, time: nowTime(), ...(label ? { label } : {}) });
+  db.calories[date].push({ id: Date.now(), amount, base: amount, mult: 1, time: nowTime(), ...(label ? { label } : {}) });
   inp.value = '';
   hideSuggestions();
   save();
@@ -1667,6 +1673,23 @@ function deleteCal(date, id) {
   if (!db.calories[date]) return;
   db.calories[date] = db.calories[date].filter(e => e.id !== id);
   if (!db.calories[date].length) delete db.calories[date];
+  save(); renderCalories(); renderCalChart();
+}
+
+// ── Multiplier: bump an entry's ×N factor up/down instead of adding duplicate entries ──
+function changeMult(date, id, delta) {
+  const arr = db.calories[date];
+  if (!arr) return;
+  const e = arr.find(x => x.id === id);
+  if (!e) return;
+  const curMult = e.mult || 1;
+  // base = the original single-portion amount, derived from existing data if not stored yet
+  const base = (typeof e.base === 'number') ? e.base : e.amount / curMult;
+  const newMult = Math.max(1, Math.min(20, curMult + delta));
+  if (newMult === curMult) return;
+  e.mult   = newMult;
+  e.base   = base;
+  e.amount = Math.round(base * newMult);
   save(); renderCalories(); renderCalChart();
 }
 
@@ -1694,7 +1717,12 @@ function renderCalories() {
   const ul = document.getElementById('calEntries');
   ul.innerHTML = '';
   let fwd = 0;
-  const colored = entries.map(e => { fwd += e.amount; return {...e, runColor: calColor(fwd)}; });
+  const colored = entries.map(e => {
+    const mult = e.mult || 1;
+    const base = (typeof e.base === 'number') ? e.base : e.amount / mult;
+    fwd += e.amount;
+    return {...e, mult, base, runColor: calColor(fwd)};
+  });
   [...colored].reverse().forEach(entry => {
     const li = document.createElement('li');
     li.className = 'entry';
@@ -1703,7 +1731,14 @@ function renderCalories() {
         <span class="entry-time">${entry.time}${entry.label ? ' · ' + entry.label : ''}</span>
         <span class="entry-val ${entry.amount < 0 ? 'burn' : ''}" style="color:${entry.amount < 0 ? '#6ab0f0' : entry.runColor}">${entry.amount < 0 ? '−' + Math.abs(entry.amount) : '+' + entry.amount} kcal</span>
       </div>
-      <button class="btn-del" onclick="deleteCal('${date}',${entry.id})">✕</button>`;
+      <div class="entry-right">
+        <div class="mult-controls">
+          <button class="btn-mult" onclick="changeMult('${date}',${entry.id},-1)" ${entry.mult <= 1 ? 'disabled' : ''} title="Reduce">−</button>
+          <span class="mult-badge">×${entry.mult}</span>
+          <button class="btn-mult" onclick="changeMult('${date}',${entry.id},1)" title="Duplicate">+</button>
+        </div>
+        <button class="btn-del" onclick="deleteCal('${date}',${entry.id})">✕</button>
+      </div>`;
     ul.appendChild(li);
   });
 }
